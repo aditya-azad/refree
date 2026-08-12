@@ -47,6 +47,28 @@
     nav.topnav a:hover { background: var(--accent-soft); color: var(--accent); }
     nav.topnav a.active { background: var(--accent-soft); color: var(--accent);
       font-weight: 600; }
+    header .search { display: flex; align-items: center; gap: 6px;
+      margin-left: 12px; }
+    header .search input[type="search"] {
+      width: 260px; padding: 5px 8px; font-size: 13px;
+      border: 1px solid var(--border); border-radius: 4px;
+      color: var(--fg); background: var(--bg);
+    }
+    header .search input[type="search"]:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    header .search button {
+      padding: 5px 12px; font-size: 13px; border: 1px solid var(--accent);
+      background: var(--accent); color: #fff; border-radius: 4px;
+      cursor: pointer;
+    }
+    header .search button:hover { filter: brightness(1.05); }
+    header .search a.clear {
+      font-size: 12px; color: var(--muted); text-decoration: none;
+      padding: 4px 2px;
+    }
+    header .search a.clear:hover { color: var(--accent); }
     details.columns-menu > summary {
       cursor: pointer; list-style: none; padding: 4px 8px;
       border: 1px solid var(--border); border-radius: 4px;
@@ -158,6 +180,15 @@
       <a href="/ui/duplicates"
         class="{{ 'active' if view == 'duplicates' else '' }}">Duplicates</a>
     </nav>
+    <form class="search" action="/" method="get" role="search">
+      <input type="search" name="q" value="{{ query|default('') }}"
+        placeholder="Search title, author, DOI…" aria-label="Search library"
+        autocomplete="off" />
+      <button type="submit">Search</button>
+      {% if query|default('') %}
+      <a class="clear" href="/" title="Clear search">Clear</a>
+      {% endif %}
+    </form>
     {% block header_extra %}{% endblock %}
   </header>
   {% block content %}{% endblock %}

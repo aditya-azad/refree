@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 from app.common.errors import DatabaseEntryNotFoundError
 from app.references.schemas import ReferenceRead
 from app.references.service import ReferencesService
+from app.search.service import SearchService
 from app.ui.schemas import (
     EXTRA_COLUMNS,
     MERGE_FIELDS,
@@ -22,18 +23,28 @@ class UIService:
     def __init__(
         self,
         references_service: ReferencesService,
+        search_service: SearchService,
         pdf_dir: Path,
         templates: Jinja2Templates,
     ) -> None:
         self._references = references_service
+        self._search = search_service
         self._pdf_dir = pdf_dir
         self._templates = templates
 
-    def render_index(self, request: Request, page: int = 1) -> HTMLResponse:
+    def render_index(
+        self, request: Request, page: int = 1, query: str | None = None
+    ) -> HTMLResponse:
         page = max(page, 1)
         offset = (page - 1) * PAGE_SIZE
-        references = self._references.list_references(PAGE_SIZE, offset)
-        total = self._references.count_references()
+        term = (query or "").strip()
+        if term:
+            page_result = self._search.search(term, PAGE_SIZE, offset)
+            references = page_result.results
+            total = page_result.total
+        else:
+            references = self._references.list_references(PAGE_SIZE, offset)
+            total = self._references.count_references()
         entries = [self._to_view(ref) for ref in references]
         total_pages = (total + PAGE_SIZE - 1) // PAGE_SIZE if total else 1
         page = min(page, total_pages) if total else 1
@@ -56,6 +67,7 @@ class UIService:
                 "entries": entries,
                 "extra_columns": EXTRA_COLUMNS,
                 "pagination": pagination,
+                "query": term,
                 "view": "library",
             },
         )

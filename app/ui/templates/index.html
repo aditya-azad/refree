@@ -63,20 +63,19 @@
         </tbody>
       </table>
       {% else %}
-      <div class="no-rows">No papers in the library yet.</div>
+      <div class="no-rows">{% if query %}No matches for "{{ query }}".{% else %}No papers in the library yet.{% endif %}</div>
       {% endif %}
       {% if pagination.total > 0 %}
       <div class="pagination">
         <span>Showing {{ pagination.range_start }}–{{ pagination.range_end }}
           of {{ pagination.total }}</span>
         <span class="spacer"></span>
-        <a href="?page={{ pagination.page - 1 }}"
+        <a href="?q={{ query|default('') }}&page={{ pagination.page - 1 }}"
           class="{{ '' if pagination.has_prev else 'disabled' }}">← Prev</a>
         <span class="current">Page {{ pagination.page }}
           of {{ pagination.total_pages }}</span>
-        <a href="?page={{ pagination.page + 1 }}"
+        <a href="?q={{ query|default('') }}&page={{ pagination.page + 1 }}"
           class="{{ '' if pagination.has_next else 'disabled' }}">Next →</a>
-      </div>
       {% endif %}
     </div>
     <aside class="sidebar" id="sidebar"></aside>

@@ -19,9 +19,10 @@ async def index(
     request: Request,
     service: UIServiceDep,
     page: Annotated[int, Query(ge=1)] = 1,
+    q: Annotated[str | None, Query(max_length=200)] = None,
 ) -> HTMLResponse:
     try:
-        return service.render_index(request, page)
+        return service.render_index(request, page, q)
     except RepositoryError as exc:
         logger.error("failed to render index: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc

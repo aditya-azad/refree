@@ -161,6 +161,10 @@ class ReferencesService:
         references = self._repository.list_references(limit, offset)
         return [ReferenceRead.model_validate(r) for r in references]
 
+    def list_all_references(self) -> list[ReferenceRead]:
+        references = self._repository.list_all_references()
+        return [ReferenceRead.model_validate(r) for r in references]
+
     def count_references(self) -> int:
         return self._repository.count_references()
 
