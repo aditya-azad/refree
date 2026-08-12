@@ -1,0 +1,72 @@
+[project]
+name = "refree"
+version = "0.1.0"
+description = "Simple reference manager"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.19.1",
+    "fastapi[standard]>=0.141.1",
+    "httpx>=0.28.1",
+    "python-dotenv>=1.2.2",
+    "sqlmodel>=0.0.39",
+    "that-depends>=4.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pyrefly>=1.2.0",
+    "pytest>=9.1.1",
+    "ruff>=0.16.2",
+]
+
+[tool.ruff]
+line-length = 80
+
+[tool.ruff.lint]
+extend-select = [
+  "I",    # isort
+  "UP",   # pyupgrade
+  "B",    # bugbear
+  "C4",   # comprehensions
+  "SIM",  # simplify
+  "RET",  # return rules
+  "ARG",  # unused args
+  "A",    # builtin shadowing
+  "PTH",  # pathlib suggestions
+  "RUF",  # Ruff-specific rules
+  "N",    # naming
+  "DTZ",  # timezone-aware datetime usage
+  "ISC",  # implicit string concat
+  "TID",  # import tidiness
+  "ICN",  # import conventions
+  "ASYNC",# async mistakes
+  "S",    # bandit-derived security rules
+]
+ignore = [
+  "D100", # module docstring
+  "D104", # package docstring
+  "D105", # magic methods
+  "D107", # __init__ docstring
+  "D203", # conflicts with D211-style preferences
+  "D213", # summary line position
+  "COM812", # formatter compatibility
+  "ISC001", # formatter compatibility
+  "S101", # allow assert, useful in tests and small projects
+  "E501", # line too long
+]
+
+
+[tool.pyrefly]
+python-version = "3.13.0"
+preset = "default"
+min-severity = "warn"
+
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+
+[tool.fastapi]
+entrypoint = "app.main:app"

@@ -1,0 +1,32 @@
+- ALWAYS use domain driven design for services
+- ALWAYS run tests through ./scripts/test.sh because there is a separate environment for test
+- ALWAYS use the .venv directory for the environment for installing dependencies
+- ALWAYS use uv to install dependencies, never use pip
+- ALWAYS use the types defiend in ./app/common/types.py for validation and cleaning
+- ALWAYS use types in ./app/common/types.py wherever possible
+- ALWAYS use pydantic for ALL modeling of data objects
+- ALWAYS run ./scripts/lint.sh to check for violations
+- ALL service specific tests MUST use fake repository implemented as duck-typed classes, NOT as subclasses of an abstract base class
+- ALL dependencies of service MUST be present to use the service, there should be no optional dependencies, therefore there should be no "| None" in service inititalization
+- ALL integration tests MUST use real database with real data
+- ALL functions MUST have type paramters and return type specified wherever possible
+- ALL background workers MUST be defined in respective services in worker.py file
+- ALL background workers that need checkpointing MUST store their watermark in the service's own Watermark model, not in a shared jobs table
+- ALL logging should happen in router.py files first, if there is no router.py place them in service.py files
+- ALL service specific test files should only contain tests that do not depend on other services
+- ALL tests that depened on multiple services should be present in single integration test file
+- router.py should ONLY exist to send proper response to user and call proper service
+- schema.py should ONLY be used to define data transfer objects
+- other services may NOT import repositories of other services, all requests must go through service.py files
+- other services may ONLY import service.py, schemas.py, and container.py files from other services
+- other service's router.py files may import ONLY ITS OWN schema.py file
+- other service's router.py files may import other service.py files
+- EVERY service owns a container.py defining a <Service>Container(BaseContainer) with its that-depends providers. This is the service's public DI surface (NestJS module analog)
+- make_*_service factories and get_*_service / *_service_session factories do NOT exist. Services are constructed by container providers; routers/workers resolve from containers
+- routers obtain services via Annotated[Service, Depends(<Container>.<provider>)]. A router may reference any service's container.py and service.py/schemas.py
+- workers obtain services via `with container_context(scope=ContextScopes.REQUEST):` then `<Container>.<provider>.resolve_sync()`. One context per task; all services resolved in that task share one DB session
+- long-lived clients (Qdrant repo, embedders, Grobid, LLM, Gmail, PDF extractors, enrich sources) are providers.Singleton and are built ONCE. DB session and SQL repositories are ContextResource/Factory (per request/task)
+- unit tests construct services directly with duck-typed fake repos; they MUST NOT use the container. Integration tests use the container inside container_context with the real test DB
+- DON'T use comments at all if possible unless specifying really convoluted behavior that's unconventional, code and naming should do most of the documentation
+- there MUST be NO use of "# noqa" and similar directives to cheat the linter
+- NEVER commit to git yourself
