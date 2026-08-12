@@ -1,3 +1,4 @@
+from pathlib import Path
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -17,6 +18,7 @@ class ConnectorCreator(BaseModel):
 class ConnectorItem(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
+    item_id: str | None = Field(default=None, alias="id")
     item_type: str = Field(alias="itemType")
     title: str
     creators: list[ConnectorCreator] = []
@@ -59,3 +61,16 @@ class SavedReference(BaseModel):
     zotero_key: str
     reference_id: UUID
     bibtex: str
+
+
+class ConnectorAttachmentMetadata(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    title: str = ""
+    parent_item_id: str | None = Field(default=None, alias="parentItemID")
+    url: str | None = None
+    content_type: str | None = Field(default=None, alias="contentType")
+
+
+class PdfAttachment(BaseModel):
+    reference_id: UUID
+    path: Path

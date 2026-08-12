@@ -1,3 +1,4 @@
+import json
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
@@ -7,6 +8,7 @@ from app.common.errors import RepositoryError
 from app.common.logging import logger
 from app.zotero_browser_plugin.container import ZoteroBrowserPluginContainer
 from app.zotero_browser_plugin.schemas import (
+    ConnectorAttachmentMetadata,
     ConnectorSaveItemsRequest,
     SaveItemsResponse,
 )
@@ -81,10 +83,48 @@ async def save_single_file() -> dict[str, str]:
 
 
 @router.post("/connector/saveAttachment")
-async def save_attachment() -> JSONResponse:
+async def save_attachment(
+    request: Request,
+    service: ZoteroBrowserPluginServiceDep,
+) -> JSONResponse:
+    session_id = request.query_params.get("sessionID", "")
+    meta = _parse_attachment_metadata(request)
+    pdf_bytes = await request.body()
+    logger.info(
+        "saveAttachment: session=%s parent=%s bytes=%d",
+        session_id,
+        meta.parent_item_id,
+        len(pdf_bytes),
+    )
+    try:
+        service.attach_pdf(session_id, meta, pdf_bytes)
+    except (RepositoryError, ValueError) as exc:
+        logger.error("failed to attach connector PDF: %s", exc)
+        raise
     return JSONResponse(status_code=201, content={})
 
 
 @router.post("/connector/saveStandaloneAttachment")
-async def save_standalone_attachment() -> JSONResponse:
+async def save_standalone_attachment(
+    request: Request,
+    service: ZoteroBrowserPluginServiceDep,
+) -> JSONResponse:
+    session_id = request.query_params.get("sessionID", "")
+    meta = _parse_attachment_metadata(request)
+    pdf_bytes = await request.body()
+    logger.info(
+        "saveStandaloneAttachment: session=%s bytes=%d",
+        session_id,
+        len(pdf_bytes),
+    )
+    try:
+        service.save_standalone_pdf(session_id, meta, pdf_bytes)
+    except (RepositoryError, ValueError) as exc:
+        logger.error("failed to save standalone PDF: %s", exc)
+        raise
     return JSONResponse(status_code=201, content={})
+
+
+def _parse_attachment_metadata(request: Request) -> ConnectorAttachmentMetadata:
+    raw = request.headers.get("X-Metadata", "{}")
+    return ConnectorAttachmentMetadata.model_validate(json.loads(raw))

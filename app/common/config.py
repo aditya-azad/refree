@@ -87,5 +87,7 @@ settings = _load_settings()
 _ensure_refree_dir(settings)
 
 REFREE_DIR = settings.refree_dir
+
+PDF_DIR = REFREE_DIR / "pdfs"
 APP_HOST = settings.app_host
 APP_PORT = settings.app_port
