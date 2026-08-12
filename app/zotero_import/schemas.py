@@ -45,8 +45,18 @@ class ZoteroImportResult(BaseModel):
     imported: int = 0
     updated: int = 0
     skipped: int = 0
+    pdfs_imported: int = 0
     errors: list[str] = []
 
 
 class CitationKeyResponse(RootModel[dict[str, str]]):
     root: dict[str, str] = {}
+
+
+class ZoteroAttachment(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    item_key: str = Field(alias="key")
+    parent_item_key: str | None = Field(default=None, alias="parentItem")
+    content_type: str | None = Field(default=None, alias="contentType")
+    title: str = ""

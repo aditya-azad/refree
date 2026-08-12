@@ -1,10 +1,10 @@
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 
 from app.references.schemas import ReferenceCreate, ReferenceRead
-from app.zotero_import.schemas import ZoteroItem
+from app.zotero_import.schemas import ZoteroAttachment, ZoteroItem
 from app.zotero_import.service import ZoteroImportService
-
 
 def _fake_reference_read(reference: ReferenceCreate) -> ReferenceRead:
     now = datetime.now(UTC)
@@ -32,8 +32,9 @@ def _fake_reference_read(reference: ReferenceCreate) -> ReferenceRead:
 class FakeReferencesService:
     def __init__(self, failing_keys: set[str] | None = None) -> None:
         self.calls: list[ReferenceCreate] = []
-        self._seen: set[str] = set()
         self._failing_keys = failing_keys or set()
+        self._by_key: dict[str, ReferenceRead] = {}
+        self.pdf_paths: dict[uuid.UUID, str] = {}
 
     def upsert_reference(
         self, reference: ReferenceCreate
@@ -43,9 +44,19 @@ class FakeReferencesService:
             msg = f"boom on {key}"
             raise RuntimeError(msg)
         self.calls.append(reference)
-        created = key not in self._seen
-        self._seen.add(key)
-        return _fake_reference_read(reference), created
+        existing = self._by_key.get(key)
+        if existing is not None:
+            return existing, False
+        ref = _fake_reference_read(reference)
+        self._by_key[key] = ref
+        return ref, True
+
+    def set_pdf_path(self, reference_id: uuid.UUID, pdf_path: str) -> None:
+        self.pdf_paths[reference_id] = pdf_path
+        for ref in self._by_key.values():
+            if ref.id == reference_id:
+                ref.pdf_path = pdf_path
+                return
 
 
 class FakeZoteroClient:
@@ -53,15 +64,30 @@ class FakeZoteroClient:
         self,
         items: list[ZoteroItem],
         keys: dict[str, str] | None = None,
+        attachments: list[ZoteroAttachment] | None = None,
+        attachment_bytes: dict[str, bytes] | None = None,
+        failing_attachments: set[str] | None = None,
     ) -> None:
         self._items = items
         self._keys = keys or {}
+        self._attachments = attachments or []
+        self._attachment_bytes = attachment_bytes or {}
+        self._failing_attachments = failing_attachments or set()
 
     def list_items(self) -> list[ZoteroItem]:
         return list(self._items)
 
     def citation_keys(self, item_keys: list[str]) -> dict[str, str]:
         return dict(self._keys)
+
+    def list_pdf_attachments(self) -> list[ZoteroAttachment]:
+        return list(self._attachments)
+
+    def download_attachment(self, item_key: str) -> bytes:
+        if item_key in self._failing_attachments:
+            msg = f"download failed for {item_key}"
+            raise RuntimeError(msg)
+        return self._attachment_bytes.get(item_key, b"%PDF-1.4 fake")
 
 
 def _zotero_item(
@@ -112,11 +138,22 @@ def _make_service(
     items: list[ZoteroItem],
     keys: dict[str, str] | None = None,
     failing_keys: set[str] | None = None,
+    attachments: list[ZoteroAttachment] | None = None,
+    attachment_bytes: dict[str, bytes] | None = None,
+    failing_attachments: set[str] | None = None,
+    pdf_dir: Path | None = None,
 ) -> tuple[ZoteroImportService, FakeReferencesService]:
     fake_refs = FakeReferencesService(failing_keys=failing_keys)
     service = ZoteroImportService(
-        client=FakeZoteroClient(items, keys),
+        client=FakeZoteroClient(
+            items,
+            keys,
+            attachments=attachments,
+            attachment_bytes=attachment_bytes,
+            failing_attachments=failing_attachments,
+        ),
         references_service=fake_refs,  # type: ignore[arg-type]
+        pdf_dir=pdf_dir or Path("/tmp/refree-test-pdfs"),
     )
     return service, fake_refs
 
@@ -246,3 +283,103 @@ def test_non_author_creators_excluded_from_authors() -> None:
     service, fake_refs = _make_service(items, keys={"KEY1": "doe2021edited"})
     service.import_all()
     assert fake_refs.calls[0].authors == ["Jane Doe"]
+
+
+
+def _pdf_attachment(
+    key: str,
+    parent_key: str | None,
+    *,
+    content_type: str = "application/pdf",
+) -> ZoteroAttachment:
+    data: dict[str, object] = {
+        "key": key,
+        "itemType": "attachment",
+        "contentType": content_type,
+        "title": f"{key}.pdf",
+    }
+    if parent_key is not None:
+        data["parentItem"] = parent_key
+    return ZoteroAttachment.model_validate(data)
+
+
+def test_pdf_attachment_downloaded_and_stored(tmp_path: Path) -> None:
+    item = _zotero_item("PARENT", title="Deep Learning")
+    attachment = _pdf_attachment("ATT1", "PARENT")
+    service, fake_refs = _make_service(
+        [item],
+        keys={"PARENT": "doe2024deeplearning"},
+        attachments=[attachment],
+        attachment_bytes={"ATT1": b"%PDF-1.4 bytes"},
+        pdf_dir=tmp_path,
+    )
+    result = service.import_all()
+    assert result.imported == 1
+    assert result.pdfs_imported == 1
+    assert len(fake_refs.pdf_paths) == 1
+    stored = list(tmp_path.glob("*.pdf"))
+    assert len(stored) == 1
+    assert stored[0].read_bytes() == b"%PDF-1.4 bytes"
+
+
+def test_pdf_filename_built_from_author_year_title(tmp_path: Path) -> None:
+    item = _zotero_item("PARENT", title="A Paper", date="2024-05-01")
+    attachment = _pdf_attachment("ATT1", "PARENT")
+    service, fake_refs = _make_service(
+        [item],
+        keys={"PARENT": "doe2024paper"},
+        attachments=[attachment],
+        pdf_dir=tmp_path,
+    )
+    service.import_all()
+    stored = list(tmp_path.glob("*.pdf"))
+    assert len(stored) == 1
+    assert stored[0].name == "Doe2024APaper.pdf"
+
+
+def test_orphan_pdf_attachment_without_parent_is_skipped(tmp_path: Path) -> None:
+    item = _zotero_item("PARENT", title="A Paper")
+    orphan = _pdf_attachment("ORPHAN", "MISSING")
+    standalone = _pdf_attachment("STANDALONE", None)
+    service, fake_refs = _make_service(
+        [item],
+        keys={"PARENT": "doe2024paper"},
+        attachments=[orphan, standalone],
+        pdf_dir=tmp_path,
+    )
+    result = service.import_all()
+    assert result.pdfs_imported == 0
+    assert result.skipped == 2
+    assert fake_refs.pdf_paths == {}
+
+
+def test_existing_pdf_path_not_reimported(tmp_path: Path) -> None:
+    item = _zotero_item("PARENT", title="A Paper")
+    attachment = _pdf_attachment("ATT1", "PARENT")
+    service, fake_refs = _make_service(
+        [item],
+        keys={"PARENT": "doe2024paper"},
+        attachments=[attachment],
+        pdf_dir=tmp_path,
+    )
+    first = service.import_all()
+    assert first.pdfs_imported == 1
+    second = service.import_all()
+    assert second.pdfs_imported == 0
+    assert second.skipped == 1
+    assert len(list(tmp_path.glob("*.pdf"))) == 1
+
+
+def test_pdf_download_error_isolated_and_recorded(tmp_path: Path) -> None:
+    item = _zotero_item("PARENT", title="A Paper")
+    attachment = _pdf_attachment("ATT1", "PARENT")
+    service, _ = _make_service(
+        [item],
+        keys={"PARENT": "doe2024paper"},
+        attachments=[attachment],
+        failing_attachments={"ATT1"},
+        pdf_dir=tmp_path,
+    )
+    result = service.import_all()
+    assert result.pdfs_imported == 0
+    assert any("ATT1" in err for err in result.errors)

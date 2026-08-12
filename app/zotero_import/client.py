@@ -1,6 +1,10 @@
 import httpx
 
-from app.zotero_import.schemas import CitationKeyResponse, ZoteroItem
+from app.zotero_import.schemas import (
+    CitationKeyResponse,
+    ZoteroAttachment,
+    ZoteroItem,
+)
 
 _LIMIT = 100
 _SKIP_ITEM_TYPES = frozenset({"attachment", "note"})
@@ -63,3 +67,43 @@ class ZoteroLocalClient:
         if not isinstance(result, dict):
             return {}
         return CitationKeyResponse.model_validate(result).root
+
+    def list_pdf_attachments(self) -> list[ZoteroAttachment]:
+        attachments: list[ZoteroAttachment] = []
+        start = 0
+        while True:
+            response = self._http.get(
+                f"{self._base_url}/api/users/0/items",
+                params={
+                    "format": "json",
+                    "limit": _LIMIT,
+                    "start": start,
+                    "itemType": "attachment",
+                },
+            )
+            response.raise_for_status()
+            page = response.json()
+            for entry in page:
+                data = entry.get("data") if isinstance(entry, dict) else None
+                if not isinstance(data, dict):
+                    continue
+                if data.get("deleted"):
+                    continue
+                if data.get("contentType") != "application/pdf":
+                    continue
+                attachments.append(ZoteroAttachment.model_validate(data))
+            if len(page) < _LIMIT:
+                break
+            start += _LIMIT
+        return attachments
+
+    def download_attachment(self, item_key: str) -> bytes:
+        try:
+            response = self._http.get(
+                f"{self._base_url}/api/users/0/items/{item_key}/file"
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as e:
+            msg = f"failed to download attachment {item_key}"
+            raise RuntimeError(msg) from e
+        return response.content
