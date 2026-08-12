@@ -121,7 +121,12 @@ _MERGE_FIELDS: tuple[str, ...] = (
 )
 
 
-_ALL_MERGE_FIELDS: tuple[str, ...] = ("title", "authors", *_MERGE_FIELDS)
+_ALL_MERGE_FIELDS: tuple[str, ...] = (
+    "title",
+    "authors",
+    "citation_key",
+    *_MERGE_FIELDS,
+)
 
 
 class _DSU:
@@ -283,17 +288,17 @@ class ReferencesService:
             survivor = max(members, key=self._reference_completeness)
         others = [m for m in members if m.id != survivor.id]
         choices = field_choices or {}
+        resolved: dict[str, object] = {}
         for field in _ALL_MERGE_FIELDS:
             source_id = choices.get(field)
-            if source_id is None:
-                continue
-            source = by_id.get(source_id)
-            if source is None:
-                continue
-            if field == "authors":
-                survivor.authors = list(source.authors)
-            else:
-                setattr(survivor, field, getattr(source, field, None))
+            if source_id is not None:
+                source = by_id.get(source_id)
+                if source is not None:
+                    resolved[field] = (
+                        list(source.authors)
+                        if field == "authors"
+                        else getattr(source, field, None)
+                    )
         for field in _MERGE_FIELDS:
             if field in choices:
                 continue
@@ -301,7 +306,7 @@ class ReferencesService:
                 for other in others:
                     value = getattr(other, field, None)
                     if value is not None:
-                        setattr(survivor, field, value)
+                        resolved[field] = value
                         break
         if "authors" not in choices:
             combined_authors: list[str] = list(survivor.authors)
@@ -309,10 +314,12 @@ class ReferencesService:
                 for author in other.authors:
                     if author not in combined_authors:
                         combined_authors.append(author)
-            survivor.authors = combined_authors
-        self._repository.update_reference(survivor)
+            resolved["authors"] = combined_authors
         for other in others:
             self._repository.delete_by_id(other.id)
+        for field, value in resolved.items():
+            setattr(survivor, field, value)
+        self._repository.update_reference(survivor)
         return ReferenceRead.model_validate(survivor)
 
     @staticmethod

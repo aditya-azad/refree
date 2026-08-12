@@ -60,6 +60,7 @@ EXTRA_COLUMNS: tuple[tuple[str, str], ...] = (
 
 MERGE_FIELDS: tuple[tuple[str, str], ...] = (
     ("title", "Title"),
+    ("citation_key", "Citation Key"),
     ("authors", "Authors"),
     ("year", "Year"),
     ("doi", "DOI"),
