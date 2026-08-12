@@ -1,8 +1,11 @@
-import re
-
 from app.pdf_store.service import PdfStore
 from app.references.schemas import ReferenceCreate
 from app.references.service import ReferencesService
+from app.zotero.service import (
+    extract_year,
+    first_author_last_name,
+    to_reference_create,
+)
 from app.zotero_browser_plugin.schemas import (
     ConnectorAttachmentMetadata,
     ConnectorItem,
@@ -10,62 +13,6 @@ from app.zotero_browser_plugin.schemas import (
     SavedReference,
 )
 from app.zotero_browser_plugin.session import ConnectorSessionRegistry
-
-
-def _first_author_last_name(item: ConnectorItem) -> str:
-    for creator in item.creators:
-        if creator.creator_type != "author":
-            continue
-        if creator.last_name:
-            return creator.last_name
-        if creator.name:
-            parts = creator.name.split()
-            return parts[0] if parts else ""
-        return ""
-    return ""
-
-
-def _extract_year(date: str | None) -> str:
-    if not date:
-        return ""
-    match = re.search(r"\d{4}", date)
-    return match.group(0) if match else ""
-
-
-def _connector_authors(item: ConnectorItem) -> list[str]:
-    authors: list[str] = []
-    for creator in item.creators:
-        if creator.creator_type != "author":
-            continue
-        if creator.last_name and creator.first_name:
-            authors.append(f"{creator.first_name} {creator.last_name}")
-        elif creator.last_name:
-            authors.append(creator.last_name)
-        elif creator.name:
-            authors.append(creator.name)
-    return authors
-
-
-def _connector_year(item: ConnectorItem) -> int | None:
-    year_str = _extract_year(item.date)
-    return int(year_str) if year_str else None
-
-
-def _connector_item_to_reference_create(item: ConnectorItem) -> ReferenceCreate:
-    return ReferenceCreate(
-        title=item.title,
-        authors=_connector_authors(item),
-        year=_connector_year(item),
-        doi=item.doi,
-        url=item.url,
-        publication_title=item.publication_title,
-        publisher=item.publisher,
-        volume=item.volume,
-        issue=item.issue,
-        pages=item.pages,
-        language=item.language,
-        abstract_note=item.abstract_note,
-    )
 
 
 class ZoteroBrowserPluginService:
@@ -108,8 +55,8 @@ class ZoteroBrowserPluginService:
             )
             raise ValueError(msg)
         filename = PdfStore.build_filename(
-            _first_author_last_name(entry.item),
-            _extract_year(entry.item.date),
+            first_author_last_name(entry.item),
+            extract_year(entry.item.date),
             entry.item.title,
         )
         relative = self._pdf_store.store(filename, pdf_bytes)
@@ -136,6 +83,6 @@ class ZoteroBrowserPluginService:
         return PdfAttachment(reference_id=created.id, path=relative)
 
     def _persist_item(self, item: ConnectorItem) -> SavedReference:
-        reference_create = _connector_item_to_reference_create(item)
+        reference_create = to_reference_create(item)
         stored = self._references_service.create_reference(reference_create)
         return SavedReference(reference_id=stored.id)

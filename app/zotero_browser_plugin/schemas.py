@@ -4,15 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.common.types import DOI, URL
-
-
-class ConnectorCreator(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
-
-    creator_type: str = Field(alias="creatorType")
-    first_name: str | None = Field(default=None, alias="firstName")
-    last_name: str | None = Field(default=None, alias="lastName")
-    name: str | None = None
+from app.zotero.schemas import ZoteroCreator
 
 
 class ConnectorItem(BaseModel):
@@ -21,7 +13,7 @@ class ConnectorItem(BaseModel):
     item_id: str | None = Field(default=None, alias="id")
     item_type: str = Field(alias="itemType")
     title: str
-    creators: list[ConnectorCreator] = []
+    creators: list[ZoteroCreator] = []
     doi: DOI | None = Field(default=None, alias="DOI")
     url: URL | None = Field(default=None, alias="url")
     date: str | None = None
@@ -35,7 +27,7 @@ class ConnectorItem(BaseModel):
     language: str | None = None
     abstract_note: str | None = Field(default=None, alias="abstractNote")
     key: str | None = None
-    uri: str | None = None
+    citation_key: str | None = None
 
     @field_validator("doi", "url", mode="before")
     @classmethod

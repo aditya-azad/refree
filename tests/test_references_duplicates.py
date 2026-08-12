@@ -1,4 +1,3 @@
-import pytest
 from collections.abc import Iterator
 
 import pytest

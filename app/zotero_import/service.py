@@ -4,8 +4,13 @@ from typing import Protocol
 
 from app.common.errors import DatabaseEntryNotFoundError, RepositoryError
 from app.pdf_store.service import PdfStore
-from app.references.schemas import ReferenceCreate, ReferenceRead
+from app.references.schemas import ReferenceRead
 from app.references.service import ReferencesService
+from app.zotero.service import (
+    extract_year,
+    first_author_last_name,
+    to_reference_create,
+)
 from app.zotero_import.schemas import (
     ZoteroAttachment,
     ZoteroImportResult,
@@ -22,62 +27,6 @@ class ZoteroClient(Protocol):
     def citation_keys(self, item_keys: list[str]) -> dict[str, str]: ...
 
     def list_pdf_attachments(self) -> list[ZoteroAttachment]: ...
-
-
-def _extract_year(date: str | None) -> str:
-    if not date:
-        return ""
-    match = re.search(r"\d{4}", date)
-    return match.group(0) if match else ""
-
-
-def _zotero_authors(item: ZoteroItem) -> list[str]:
-    authors: list[str] = []
-    for creator in item.creators:
-        if creator.creator_type != "author":
-            continue
-        if creator.last_name and creator.first_name:
-            authors.append(f"{creator.first_name} {creator.last_name}")
-        elif creator.last_name:
-            authors.append(creator.last_name)
-        elif creator.name:
-            authors.append(creator.name)
-    return authors
-
-
-def _zotero_year(item: ZoteroItem) -> int | None:
-    year_str = _extract_year(item.date)
-    return int(year_str) if year_str else None
-
-
-def _first_author_last_name(item: ZoteroItem) -> str:
-    for creator in item.creators:
-        if creator.creator_type != "author":
-            continue
-        if creator.last_name:
-            return creator.last_name
-        if creator.name:
-            return creator.name
-        return ""
-    return ""
-
-
-def _zotero_item_to_reference_create(item: ZoteroItem) -> ReferenceCreate:
-    return ReferenceCreate(
-        title=item.title,
-        authors=_zotero_authors(item),
-        year=_zotero_year(item),
-        doi=item.doi,
-        url=item.url,
-        publication_title=item.publication_title,
-        publisher=item.publisher,
-        volume=item.volume,
-        issue=item.issue,
-        pages=item.pages,
-        language=item.language,
-        abstract_note=item.abstract_note,
-        citation_key=item.citation_key,
-    )
 
 
 class ZoteroImportService:
@@ -103,7 +52,7 @@ class ZoteroImportService:
                 continue
             item.citation_key = keys.get(item.item_key)
             try:
-                reference_create = _zotero_item_to_reference_create(item)
+                reference_create = to_reference_create(item)
                 reference, created = self._references_service.upsert_reference(
                     reference_create
                 )
@@ -150,8 +99,8 @@ class ZoteroImportService:
                 pdf_bytes = source.read_bytes()
                 relative = self._pdf_store.store(
                     PdfStore.build_filename(
-                        _first_author_last_name(item),
-                        _extract_year(item.date),
+                        first_author_last_name(item),
+                        extract_year(item.date),
                         item.title,
                     ),
                     pdf_bytes,

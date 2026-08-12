@@ -1,15 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 
 from app.common.types import DOI, URL
-
-
-class ZoteroCreator(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
-
-    creator_type: str = Field(alias="creatorType")
-    first_name: str | None = Field(default=None, alias="firstName")
-    last_name: str | None = Field(default=None, alias="lastName")
-    name: str | None = None
+from app.zotero.schemas import ZoteroCreator
 
 
 class ZoteroItem(BaseModel):

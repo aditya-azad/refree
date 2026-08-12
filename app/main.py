@@ -13,6 +13,7 @@ from app.references.router import router as references_router
 from app.search.container import SearchContainer
 from app.ui.container import UIContainer
 from app.ui.router import router as ui_router
+from app.zotero.container import ZoteroContainer
 from app.zotero_browser_plugin.container import (
     ZoteroBrowserPluginContainer,
 )
@@ -34,6 +35,7 @@ _CONTAINERS = (
     ReferencesContainer,
     SearchContainer,
     UIContainer,
+    ZoteroContainer,
     ZoteroBrowserPluginContainer,
 )
 # add routers
