@@ -1,137 +1,27 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>refree</title>
-  <style>
-    :root {
-      --bg: #ffffff;
-      --fg: #1a1a1a;
-      --muted: #6b6b6b;
-      --border: #e2e2e2;
-      --accent: #2a6cb0;
-      --accent-soft: #eaf1f8;
-      --sidebar-bg: #fafafa;
-    }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-        Helvetica, Arial, sans-serif;
-      font-size: 14px;
-      color: var(--fg);
-      background: var(--bg);
-      display: flex;
-      flex-direction: column;
-    }
-    header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 8px 16px;
-      border-bottom: 1px solid var(--border);
-      flex: 0 0 auto;
-    }
-    header h1 { font-size: 16px; margin: 0; font-weight: 600; }
-    header .columns { margin-left: auto; display: flex; flex-wrap: wrap;
-      gap: 8px; align-items: center; }
-    header .columns span { color: var(--muted); font-size: 12px; }
-    details.columns-menu > summary {
-      cursor: pointer; list-style: none; padding: 4px 8px;
-      border: 1px solid var(--border); border-radius: 4px;
-      font-size: 12px; color: var(--muted); user-select: none;
-    }
-    details.columns-menu > summary::-webkit-details-marker { display: none; }
-    .columns-menu-panel {
-      position: absolute; right: 16px; margin-top: 6px;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 6px; padding: 8px; box-shadow: 0 4px 12px
-        rgba(0,0,0,0.08); max-height: 60vh; overflow: auto;
-      display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px;
-      z-index: 20;
-    }
-    .columns-menu-panel label {
-      display: flex; gap: 6px; align-items: center; font-size: 12px;
-      white-space: nowrap;
-    }
-    main { flex: 1 1 auto; display: flex; min-height: 0; }
-    .list-pane {
-      flex: 1 1 auto; overflow: auto; min-width: 0;
-    }
-    .sidebar {
-      flex: 0 0 380px; border-left: 1px solid var(--border);
-      background: var(--sidebar-bg); overflow: auto; padding: 16px;
-    }
-    .sidebar:empty::before {
-      content: "Select a paper to see its details.";
-      color: var(--muted); font-style: italic;
-    }
-    table { width: 100%; border-collapse: collapse; }
-    thead th {
-      position: sticky; top: 0; background: var(--bg); z-index: 5;
-      text-align: left; padding: 6px 10px; font-weight: 600;
-      font-size: 12px; border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-    tbody tr { cursor: pointer; border-bottom: 1px solid var(--border); }
+{% extends "base.html" %}
+
+{% block styles %}
+    tbody tr { cursor: pointer; }
     tbody tr:hover { background: var(--accent-soft); }
     tbody tr.selected { background: var(--accent-soft); }
-    td { padding: 6px 10px; vertical-align: top; }
-    td.title { font-weight: 500; }
-    td.authors { color: var(--muted); }
-    td.year { color: var(--muted); white-space: nowrap; }
-    .col-optional { display: none; }
-    .no-rows { padding: 24px; color: var(--muted); text-align: center; }
-    .sidebar h2 { font-size: 15px; margin: 0 0 4px; }
-    .sidebar .authors { color: var(--muted); margin: 0 0 12px;
-      font-size: 13px; }
-    .sidebar dl { margin: 0; display: grid; grid-template-columns:
-      max-content 1fr; gap: 4px 12px; }
-    .sidebar dt { color: var(--muted); font-size: 12px; }
-    .sidebar dd { margin: 0; word-break: break-word; }
-    .sidebar a { color: var(--accent); text-decoration: none; }
-    .sidebar a:hover { text-decoration: underline; }
-    .pdf-link {
-      display: inline-block; margin-top: 12px; padding: 6px 10px;
-      background: var(--accent); color: #fff; border-radius: 4px;
-      font-size: 12px; cursor: pointer; user-select: none;
-    }
-    .pdf-link:hover { filter: brightness(1.05); }
-    .pdf-missing { color: var(--muted); font-size: 12px; margin-top: 12px; }
-    .pagination {
-      display: flex; align-items: center; gap: 12px; padding: 8px 10px;
-      border-top: 1px solid var(--border); font-size: 12px;
-      color: var(--muted); position: sticky; bottom: 0; background: var(--bg);
-    }
-    .pagination .spacer { flex: 1 1 auto; }
-    .pagination a {
-      color: var(--accent); text-decoration: none; padding: 4px 10px;
-      border: 1px solid var(--border); border-radius: 4px;
-    }
-    .pagination a:hover { background: var(--accent-soft); }
-    .pagination a.disabled {
-      color: var(--muted); pointer-events: none; opacity: 0.5;
-    }
-    .pagination .current { font-weight: 600; color: var(--fg); }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>refree</h1>
-    <div class="columns">
-      <span>Columns:</span>
-      <details class="columns-menu">
-        <summary>Toggle fields</summary>
-        <div class="columns-menu-panel">
-          {% for key, label in extra_columns %}
-          <label><input type="checkbox" data-col="{{ key }}" />
-            {{ label }}</label>
-          {% endfor %}
-        </div>
-      </details>
+{% endblock %}
+
+{% block header_extra %}
+<div class="columns">
+  <span>Columns:</span>
+  <details class="columns-menu">
+    <summary>Toggle fields</summary>
+    <div class="columns-menu-panel">
+      {% for key, label in extra_columns %}
+      <label><input type="checkbox" data-col="{{ key }}" />
+        {{ label }}</label>
+      {% endfor %}
     </div>
-  </header>
+  </details>
+</div>
+{% endblock %}
+
+{% block content %}
   <main>
     <div class="list-pane">
       {% if entries %}
@@ -191,6 +81,9 @@
     </div>
     <aside class="sidebar" id="sidebar"></aside>
   </main>
+{% endblock %}
+
+{% block scripts %}
   <script>
     const sidebar = document.getElementById("sidebar");
     let selectedId = null;
@@ -241,5 +134,4 @@
       if (menu && !menu.contains(e.target)) menu.open = false;
     });
   </script>
-</body>
-</html>
+{% endblock %}

@@ -98,6 +98,47 @@ def _disambiguation_suffixes() -> Iterator[str]:
             yield first + second
 
 
+def normalize_title(title: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", title.lower())
+
+
+def _first_author_last_name_lower(authors: list[str]) -> str:
+    return _first_author_last_name(authors).lower()
+
+
+_MERGE_FIELDS: tuple[str, ...] = (
+    "year",
+    "doi",
+    "url",
+    "publication_title",
+    "publisher",
+    "volume",
+    "issue",
+    "pages",
+    "language",
+    "abstract_note",
+    "pdf_path",
+)
+
+
+class _DSU:
+    def __init__(self, n: int) -> None:
+        self._parent: list[int] = list(range(n))
+
+    def find(self, x: int) -> int:
+        root = x
+        while self._parent[root] != root:
+            root = self._parent[root]
+        while self._parent[x] != root:
+            self._parent[x], x = root, self._parent[x]
+        return root
+
+    def union(self, a: int, b: int) -> None:
+        ra, rb = self.find(a), self.find(b)
+        if ra != rb:
+            self._parent[rb] = ra
+
+
 class ReferencesService:
     def __init__(self, repository: ReferencesRepository) -> None:
         self._repository = repository
@@ -187,6 +228,94 @@ class ReferencesService:
         existing.pdf_path = pdf_path
         self._repository.update_reference(existing)
         return ReferenceRead.model_validate(existing)
+
+    def find_duplicate_groups(self) -> list[list[ReferenceRead]]:
+        references = self._repository.list_all_references()
+        if len(references) < 2:
+            return []
+        dsu = _DSU(len(references))
+        by_key: dict[str, int] = {}
+        for index, ref in enumerate(references):
+            for key in self._duplicate_keys(ref):
+                existing = by_key.get(key)
+                if existing is None:
+                    by_key[key] = index
+                else:
+                    dsu.union(existing, index)
+        clusters: dict[int, list[Reference]] = {}
+        for index, ref in enumerate(references):
+            clusters.setdefault(dsu.find(index), []).append(ref)
+        groups: list[list[ReferenceRead]] = []
+        for members in clusters.values():
+            if len(members) < 2:
+                continue
+            members.sort(key=lambda r: (r.title.lower(), str(r.id)))
+            groups.append([ReferenceRead.model_validate(r) for r in members])
+        groups.sort(key=lambda g: g[0].title.lower())
+        return groups
+
+    def merge_references(self, reference_ids: list[UUID]) -> ReferenceRead:
+        unique_ids: list[UUID] = []
+        seen: set[UUID] = set()
+        for rid in reference_ids:
+            if rid not in seen:
+                seen.add(rid)
+                unique_ids.append(rid)
+        if len(unique_ids) < 2:
+            msg = "at least two distinct references are required to merge"
+            raise ValueError(msg)
+        members = [self._repository.get_by_id(rid) for rid in unique_ids]
+        survivor = max(members, key=self._reference_completeness)
+        others = [m for m in members if m.id != survivor.id]
+        self._merge_into(survivor, others)
+        self._repository.update_reference(survivor)
+        for other in others:
+            self._repository.delete_by_id(other.id)
+        return ReferenceRead.model_validate(survivor)
+
+    @staticmethod
+    def _merge_into(survivor: Reference, others: list[Reference]) -> None:
+        for field in _MERGE_FIELDS:
+            if getattr(survivor, field, None) is None:
+                for other in others:
+                    value = getattr(other, field, None)
+                    if value is not None:
+                        setattr(survivor, field, value)
+                        break
+        combined_authors: list[str] = list(survivor.authors)
+        for other in others:
+            for author in other.authors:
+                if author not in combined_authors:
+                    combined_authors.append(author)
+        survivor.authors = combined_authors
+
+    @staticmethod
+    def _duplicate_keys(ref: Reference) -> list[str]:
+        keys: list[str] = []
+        if ref.doi:
+            keys.append("doi:" + ref.doi.lower())
+        norm_title = normalize_title(ref.title)
+        if norm_title:
+            if ref.year is not None:
+                keys.append(f"ty:{norm_title}|{ref.year}")
+            author = _first_author_last_name_lower(list(ref.authors))
+            if author:
+                keys.append(f"ta:{norm_title}|{author}")
+        return keys
+
+    @staticmethod
+    def _reference_completeness(ref: Reference) -> tuple[int, str]:
+        score = 0
+        for field in _MERGE_FIELDS:
+            value = getattr(ref, field, None)
+            if field == "year":
+                if value is not None:
+                    score += 1
+            elif value:
+                score += 1
+        if ref.authors:
+            score += 1
+        return score, str(ref.id)
 
     def _unique_citation_key(
         self, title: str, authors: list[str], year: int | None

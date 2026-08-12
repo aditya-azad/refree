@@ -8,7 +8,13 @@ from fastapi.templating import Jinja2Templates
 from app.common.errors import DatabaseEntryNotFoundError
 from app.references.schemas import ReferenceRead
 from app.references.service import ReferencesService
-from app.ui.schemas import EXTRA_COLUMNS, PAGE_SIZE, Pagination, ReferenceView
+from app.ui.schemas import (
+    EXTRA_COLUMNS,
+    PAGE_SIZE,
+    DuplicateGroupView,
+    Pagination,
+    ReferenceView,
+)
 
 
 class UIService:
@@ -49,6 +55,7 @@ class UIService:
                 "entries": entries,
                 "extra_columns": EXTRA_COLUMNS,
                 "pagination": pagination,
+                "view": "library",
             },
         )
 
@@ -73,6 +80,21 @@ class UIService:
             msg = f"PDF file not found for reference {reference_id}"
             raise DatabaseEntryNotFoundError(msg)
         return path
+
+    def render_duplicates(self, request: Request) -> HTMLResponse:
+        groups = self._references.find_duplicate_groups()
+        view_groups = [
+            DuplicateGroupView(references=[self._to_view(r) for r in group])
+            for group in groups
+        ]
+        return self._templates.TemplateResponse(
+            request,
+            "duplicates.html",
+            {"groups": view_groups, "view": "duplicates"},
+        )
+
+    def merge_duplicates(self, reference_ids: list[UUID]) -> None:
+        self._references.merge_references(reference_ids)
 
     def _to_view(self, reference: ReferenceRead) -> ReferenceView:
         return ReferenceView(

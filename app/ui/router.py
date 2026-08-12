@@ -1,8 +1,8 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from app.common.errors import DatabaseEntryNotFoundError, RepositoryError
 from app.common.logging import logger
@@ -25,6 +25,37 @@ async def index(
     except RepositoryError as exc:
         logger.error("failed to render index: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/ui/duplicates", response_class=HTMLResponse)
+async def duplicates(
+    request: Request,
+    service: UIServiceDep,
+) -> HTMLResponse:
+    try:
+        return service.render_duplicates(request)
+    except RepositoryError as exc:
+        logger.error("failed to render duplicates: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/ui/duplicates/merge")
+async def merge_duplicates(
+    service: UIServiceDep,
+    reference_ids: Annotated[list[UUID], Form()],
+) -> RedirectResponse:
+    try:
+        service.merge_duplicates(reference_ids)
+    except DatabaseEntryNotFoundError as exc:
+        logger.warning("merge target not found: %s", exc)
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        logger.warning("invalid merge request: %s", exc)
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RepositoryError as exc:
+        logger.error("failed to merge duplicates: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return RedirectResponse(url="/ui/duplicates", status_code=303)
 
 
 @router.get("/ui/reference/{reference_id}", response_class=HTMLResponse)

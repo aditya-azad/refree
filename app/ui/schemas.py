@@ -26,6 +26,10 @@ class ReferenceView(BaseModel):
     has_pdf: bool
 
 
+class DuplicateGroupView(BaseModel):
+    references: list[ReferenceView]
+
+
 class Pagination(BaseModel):
     page: int
     page_size: int

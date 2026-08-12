@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <main>
+    <div class="list-pane">
+      {% if groups %}
+      <div class="dup-list">
+        {% for group in groups %}
+        <form class="dup-group" action="/ui/duplicates/merge" method="post"
+          data-group>
+          <div class="dup-group-header">
+            <span class="gtitle">{{ group.references[0].title }}</span>
+            <span class="gcount">{{ group.references | length }} duplicates</span>
+            <button type="submit"
+              data-merge>Merge selected</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th class="pick"></th>
+                <th>Title</th>
+                <th>Authors</th>
+                <th>Year</th>
+                <th>DOI</th>
+                <th>Citation key</th>
+                <th>PDF</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ref in group.references %}
+              <tr class="dup-row">
+                <td class="pick"><input type="checkbox" name="reference_ids"
+                  value="{{ ref.id }}" data-pick checked /></td>
+                <td class="title">{{ ref.title }}</td>
+                <td class="authors">{{ ref.authors | join("; ") }}</td>
+                <td class="year">{{ ref.year if ref.year else "" }}</td>
+                <td>
+                  {% if ref.doi %}<a href="https://doi.org/{{ ref.doi }}"
+                    target="_blank" rel="noopener">{{ ref.doi }}</a>
+                  {% endif %}
+                </td>
+                <td class="meta">{{ ref.citation_key }}</td>
+                <td>{{ "Yes" if ref.has_pdf else "No" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </form>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="no-rows">No duplicate references detected.</div>
+      {% endif %}
+    </div>
+  </main>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    document.querySelectorAll("form[data-group]").forEach(form => {
+      const button = form.querySelector("[data-merge]");
+      const picks = form.querySelectorAll("[data-pick]");
+      const update = () => {
+        const checked = Array.from(picks).filter(p => p.checked).length;
+        button.disabled = checked < 2;
+      };
+      picks.forEach(p => p.addEventListener("change", update));
+      update();
+    });
+  </script>
+{% endblock %}

@@ -39,6 +39,13 @@ class ReferencesRepository:
         except Exception as e:
             raise RepositoryError("failed to list references") from e
 
+    def list_all_references(self) -> list[Reference]:
+        try:
+            stmt = select(Reference).order_by(Reference.title)
+            return list(self._session.exec(stmt))
+        except Exception as e:
+            raise RepositoryError("failed to list references") from e
+
     def count_references(self) -> int:
         try:
             stmt = select(func.count()).select_from(Reference)

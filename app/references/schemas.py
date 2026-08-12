@@ -62,3 +62,11 @@ class ReferenceRead(BaseModel):
     pdf_path: str | None
     created_at: UTCDatetime
     updated_at: UTCDatetime
+
+
+class DuplicateGroupRead(BaseModel):
+    references: list[ReferenceRead]
+
+
+class MergeRequest(BaseModel):
+    reference_ids: list[UUID]
