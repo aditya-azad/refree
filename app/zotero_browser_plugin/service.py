@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 from uuid import UUID
 
-from app.references.schemas import ItemCreate
+from app.references.schemas import ReferenceCreate
 from app.references.service import ReferencesService
 from app.zotero_browser_plugin.schemas import (
     ConnectorAttachmentMetadata,
@@ -37,6 +37,25 @@ def _extract_year(date: str | None) -> str:
         return ""
     match = re.search(r"\d{4}", date)
     return match.group(0) if match else ""
+
+
+def _connector_authors(item: ConnectorItem) -> list[str]:
+    authors: list[str] = []
+    for creator in item.creators:
+        if creator.creator_type != "author":
+            continue
+        if creator.last_name and creator.first_name:
+            authors.append(f"{creator.first_name} {creator.last_name}")
+        elif creator.last_name:
+            authors.append(creator.last_name)
+        elif creator.name:
+            authors.append(creator.name)
+    return authors
+
+
+def _connector_year(item: ConnectorItem) -> int | None:
+    year_str = _extract_year(item.date)
+    return int(year_str) if year_str else None
 
 
 def _build_pdf_filename(last_name: str, year: str, title: str) -> str:
@@ -101,21 +120,29 @@ class ZoteroBrowserPluginService:
         pdf_bytes: bytes,
     ) -> PdfAttachment:
         title = attachment_meta.title or "Untitled Attachment"
-        created = self._references_service.create_item(
-            ItemCreate(name=title, description="")
+        created = self._references_service.create_reference(
+            ReferenceCreate(title=title)
         )
         filename = _build_pdf_filename("", "", title)
         return self._store_pdf(created.id, filename, pdf_bytes)
 
     def _persist_item(self, item: ConnectorItem) -> SavedReference:
-        zotero_key = item.key or ""
-        item_create = ItemCreate(
-            name=item.title,
-            description=zotero_key,
+        reference_create = ReferenceCreate(
+            title=item.title,
+            authors=_connector_authors(item),
+            year=_connector_year(item),
+            doi=item.doi,
+            url=item.url,
+            publication_title=item.publication_title,
+            publisher=item.publisher,
+            volume=item.volume,
+            issue=item.issue,
+            pages=item.pages,
+            language=item.language,
+            abstract_note=item.abstract_note,
         )
-        stored = self._references_service.create_item(item_create)
+        stored = self._references_service.create_reference(reference_create)
         return SavedReference(
-            zotero_key=zotero_key,
             reference_id=stored.id,
             bibtex="",
         )

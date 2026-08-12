@@ -2,28 +2,61 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.common.types import UTCDatetime
+from app.common.types import (
+    DOI,
+    URL,
+    Authors,
+    ProperWhitespacedStr,
+    UTCDatetime,
+)
 
 
-class ItemBase(BaseModel):
-    name: str
-    description: str | None = None
+class ReferenceCreate(BaseModel):
+    title: ProperWhitespacedStr
+    authors: Authors = []
+    year: int | None = None
+    doi: DOI | None = None
+    url: URL | None = None
+    publication_title: ProperWhitespacedStr | None = None
+    publisher: ProperWhitespacedStr | None = None
+    volume: ProperWhitespacedStr | None = None
+    issue: ProperWhitespacedStr | None = None
+    pages: ProperWhitespacedStr | None = None
+    language: ProperWhitespacedStr | None = None
+    abstract_note: ProperWhitespacedStr | None = None
 
 
-class ItemCreate(ItemBase):
-    pass
+class ReferenceUpdate(BaseModel):
+    title: ProperWhitespacedStr | None = None
+    authors: Authors | None = None
+    year: int | None = None
+    doi: DOI | None = None
+    url: URL | None = None
+    publication_title: ProperWhitespacedStr | None = None
+    publisher: ProperWhitespacedStr | None = None
+    volume: ProperWhitespacedStr | None = None
+    issue: ProperWhitespacedStr | None = None
+    pages: ProperWhitespacedStr | None = None
+    language: ProperWhitespacedStr | None = None
+    abstract_note: ProperWhitespacedStr | None = None
 
 
-class ItemUpdate(BaseModel):
-    name: str | None = None
-    description: str | None = None
-
-
-class ItemRead(BaseModel):
+class ReferenceRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    name: str
-    description: str | None = None
+    title: str
+    authors: list[str]
+    year: int | None
+    citation_key: str
+    doi: str | None
+    url: str | None
+    publication_title: str | None
+    publisher: str | None
+    volume: str | None
+    issue: str | None
+    pages: str | None
+    language: str | None
+    abstract_note: str | None
     created_at: UTCDatetime
     updated_at: UTCDatetime

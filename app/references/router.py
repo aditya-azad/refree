@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from app.common.errors import DatabaseEntryNotFoundError, RepositoryError
 from app.common.logging import logger
 from app.references.container import ReferencesContainer
-from app.references.schemas import ItemCreate, ItemRead, ItemUpdate
+from app.references.schemas import (
+    ReferenceCreate,
+    ReferenceRead,
+    ReferenceUpdate,
+)
 from app.references.service import ReferencesService
 
 router = APIRouter()
@@ -16,70 +20,93 @@ ReferencesServiceDep = Annotated[
 ]
 
 
-@router.get("/items", response_model=list[ItemRead], tags=["items"])
-async def list_items(
+@router.get(
+    "/references", response_model=list[ReferenceRead], tags=["references"]
+)
+async def list_references(
     service: ReferencesServiceDep,
     limit: Annotated[int, Query(ge=1)] = 100,
-) -> list[ItemRead]:
+) -> list[ReferenceRead]:
     try:
-        return service.list_items(limit)
+        return service.list_references(limit)
     except RepositoryError as exc:
-        logger.error("failed to list items: %s", exc)
+        logger.error("failed to list references: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@router.get("/items/{item_id}", response_model=ItemRead, tags=["items"])
-async def get_item(
-    item_id: Annotated[UUID, Path(description="UUID of the item to retrieve")],
+@router.get(
+    "/references/{reference_id}",
+    response_model=ReferenceRead,
+    tags=["references"],
+)
+async def get_reference(
+    reference_id: Annotated[
+        UUID, Path(description="UUID of the reference to retrieve")
+    ],
     service: ReferencesServiceDep,
-) -> ItemRead:
+) -> ReferenceRead:
     try:
-        return service.get_item(item_id)
+        return service.get_reference(reference_id)
     except DatabaseEntryNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except RepositoryError as exc:
-        logger.error("failed to retrieve item: %s", exc)
+        logger.error("failed to retrieve reference: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@router.post("/items", response_model=ItemRead, status_code=201, tags=["items"])
-async def create_item(
-    item: ItemCreate,
+@router.post(
+    "/references",
+    response_model=ReferenceRead,
+    status_code=201,
+    tags=["references"],
+)
+async def create_reference(
+    reference: ReferenceCreate,
     service: ReferencesServiceDep,
-) -> ItemRead:
+) -> ReferenceRead:
     try:
-        result = service.create_item(item)
+        result = service.create_reference(reference)
     except RepositoryError as exc:
-        logger.error("failed to create item: %s", exc)
+        logger.error("failed to create reference: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return result
 
 
-@router.put("/items/{item_id}", response_model=ItemRead, tags=["items"])
-async def update_item(
-    item_id: Annotated[UUID, Path(description="UUID of the item to update")],
-    item: ItemUpdate,
+@router.put(
+    "/references/{reference_id}",
+    response_model=ReferenceRead,
+    tags=["references"],
+)
+async def update_reference(
+    reference_id: Annotated[
+        UUID, Path(description="UUID of the reference to update")
+    ],
+    reference: ReferenceUpdate,
     service: ReferencesServiceDep,
-) -> ItemRead:
+) -> ReferenceRead:
     try:
-        result = service.update_item(item_id, item)
+        result = service.update_reference(reference_id, reference)
     except DatabaseEntryNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except RepositoryError as exc:
-        logger.error("failed to update item: %s", exc)
+        logger.error("failed to update reference: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return result
 
 
-@router.delete("/items/{item_id}", status_code=204, tags=["items"])
-async def delete_item(
-    item_id: Annotated[UUID, Path(description="UUID of the item to delete")],
+@router.delete(
+    "/references/{reference_id}", status_code=204, tags=["references"]
+)
+async def delete_reference(
+    reference_id: Annotated[
+        UUID, Path(description="UUID of the reference to delete")
+    ],
     service: ReferencesServiceDep,
 ) -> None:
     try:
-        service.delete_item(item_id)
+        service.delete_reference(reference_id)
     except DatabaseEntryNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except RepositoryError as exc:
-        logger.error("failed to delete item: %s", exc)
+        logger.error("failed to delete reference: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc

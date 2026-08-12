@@ -58,7 +58,6 @@ class SaveItemsResponse(BaseModel):
 
 
 class SavedReference(BaseModel):
-    zotero_key: str
     reference_id: UUID
     bibtex: str
 

@@ -8,55 +8,61 @@ from app.common.errors import (
     RepositoryError,
     UsedAsForeignKeyError,
 )
-from app.references.models import Item
+from app.references.models import Reference
 
 
 class ReferencesRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def get_by_id(self, item_id: UUID) -> Item:
+    def get_by_id(self, reference_id: UUID) -> Reference:
         try:
-            item = self._session.get(Item, item_id)
+            reference = self._session.get(Reference, reference_id)
         except Exception as e:
-            raise RepositoryError("failed to retrieve item") from e
-        if item is None:
-            raise DatabaseEntryNotFoundError(f"item with id {item_id}")
-        return item
+            raise RepositoryError("failed to retrieve reference") from e
+        if reference is None:
+            raise DatabaseEntryNotFoundError(
+                f"reference with id {reference_id}"
+            )
+        return reference
 
-    def list_items(self, limit: int) -> list[Item]:
+    def list_references(self, limit: int) -> list[Reference]:
         try:
-            stmt = select(Item).limit(limit)
+            stmt = select(Reference).limit(limit)
             return list(self._session.exec(stmt))
         except Exception as e:
-            raise RepositoryError("failed to list items") from e
+            raise RepositoryError("failed to list references") from e
 
-    def create_item(self, item: Item) -> None:
+    def create_reference(self, reference: Reference) -> None:
         try:
-            self._session.add(item)
+            self._session.add(reference)
             self._session.commit()
         except Exception as e:
             self._session.rollback()
-            raise RepositoryError("failed to create item") from e
+            raise RepositoryError("failed to create reference") from e
 
-    def update_item(self, item: Item) -> None:
+    def update_reference(self, reference: Reference) -> None:
         try:
-            existing = self._session.get(Item, item.id)
+            existing = self._session.get(Reference, reference.id)
             if existing is None:
-                raise DatabaseEntryNotFoundError(f"item with id {item.id}")
-            self._session.merge(item)
+                raise DatabaseEntryNotFoundError(
+                    f"reference with id {reference.id}"
+                )
+            self._session.merge(reference)
             self._session.commit()
         except DatabaseEntryNotFoundError:
             raise
         except Exception as e:
             self._session.rollback()
-            raise RepositoryError("failed to update item") from e
+            raise RepositoryError("failed to update reference") from e
 
-    def delete_item_by_id(self, item_id: UUID) -> None:
+    def delete_by_id(self, reference_id: UUID) -> None:
         try:
-            existing = self._session.get(Item, item_id)
+            existing = self._session.get(Reference, reference_id)
             if existing is None:
-                raise DatabaseEntryNotFoundError(f"item with id {item_id}")
+                raise DatabaseEntryNotFoundError(
+                    f"reference with id {reference_id}"
+                )
             self._session.delete(existing)
             self._session.commit()
         except DatabaseEntryNotFoundError:
@@ -64,8 +70,17 @@ class ReferencesRepository:
         except IntegrityError as e:
             self._session.rollback()
             raise UsedAsForeignKeyError(
-                f"item {item_id} is referenced by another row"
+                f"reference {reference_id} is referenced by another row"
             ) from e
         except Exception as e:
             self._session.rollback()
-            raise RepositoryError("failed to delete item") from e
+            raise RepositoryError("failed to delete reference") from e
+
+    def find_citation_keys_by_prefix(self, prefix: str) -> list[str]:
+        try:
+            stmt = select(Reference.citation_key).where(
+                Reference.citation_key.startswith(prefix)
+            )
+            return list(self._session.exec(stmt))
+        except Exception as e:
+            raise RepositoryError("failed to lookup citation keys") from e
