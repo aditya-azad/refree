@@ -231,7 +231,7 @@
         const key = cb.dataset.col;
         const cells = document.querySelectorAll(".col-" + key);
         cells.forEach(c => {
-          c.style.display = cb.checked ? "" : "none";
+          c.classList.toggle("col-optional", !cb.checked);
         });
       });
     });
