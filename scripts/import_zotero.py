@@ -10,6 +10,7 @@ from that_depends.providers.context_resources import (
     container_context,
 )
 
+from app.common.database import create_db_and_tables
 from app.zotero_import.container import ZoteroImportContainer
 
 
@@ -23,6 +24,7 @@ def main() -> None:
         help="Zotero local server base URL.",
     )
     args = parser.parse_args()
+    create_db_and_tables()
     with (
         container_context(scope=ContextScopes.REQUEST),
         ZoteroImportContainer.zotero_base_url.init(args.base_url),
