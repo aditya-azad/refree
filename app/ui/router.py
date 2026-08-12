@@ -56,4 +56,5 @@ async def reference_pdf(
         path,
         media_type="application/pdf",
         filename=path.name,
+        content_disposition_type="inline",
     )
