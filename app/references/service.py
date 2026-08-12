@@ -140,6 +140,12 @@ class ReferencesService:
     def create_or_update_reference(
         self, reference: ReferenceCreate
     ) -> ReferenceRead:
+        ref, _ = self.upsert_reference(reference)
+        return ref
+
+    def upsert_reference(
+        self, reference: ReferenceCreate
+    ) -> tuple[ReferenceRead, bool]:
         if reference.citation_key is not None:
             key = reference.citation_key
         else:
@@ -148,14 +154,14 @@ class ReferencesService:
             )
         existing = self._repository.find_by_citation_key(key)
         if existing is None:
-            return self.create_reference(reference)
+            return self.create_reference(reference), True
         merged = existing.model_dump()
         merged.update(reference.model_dump(exclude_none=True))
         merged["citation_key"] = key
         model = Reference(**merged)
         model.id = existing.id
         self._repository.update_reference(model)
-        return ReferenceRead.model_validate(model)
+        return ReferenceRead.model_validate(model), False
 
     def update_reference(
         self, reference_id: UUID, reference: ReferenceUpdate
