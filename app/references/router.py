@@ -63,7 +63,11 @@ async def merge_references(
     service: ReferencesServiceDep,
 ) -> ReferenceRead:
     try:
-        return service.merge_references(payload.reference_ids)
+        return service.merge_references(
+            payload.reference_ids,
+            payload.survivor_id,
+            payload.field_choices,
+        )
     except DatabaseEntryNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:

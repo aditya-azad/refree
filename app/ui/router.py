@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from app.common.errors import DatabaseEntryNotFoundError, RepositoryError
@@ -41,11 +41,20 @@ async def duplicates(
 
 @router.post("/ui/duplicates/merge")
 async def merge_duplicates(
+    request: Request,
     service: UIServiceDep,
-    reference_ids: Annotated[list[UUID], Form()],
 ) -> RedirectResponse:
+    form = await request.form()
+    reference_ids = [UUID(str(v)) for v in form.getlist("reference_ids")]
+    survivor_id = (
+        UUID(str(form["survivor_id"])) if "survivor_id" in form else None
+    )
+    field_choices: dict[str, UUID] = {}
+    for key, value in form.multi_items():
+        if key.startswith("field_"):
+            field_choices[key.removeprefix("field_")] = UUID(str(value))
     try:
-        service.merge_duplicates(reference_ids)
+        service.merge_duplicates(reference_ids, survivor_id, field_choices)
     except DatabaseEntryNotFoundError as exc:
         logger.warning("merge target not found: %s", exc)
         raise HTTPException(status_code=404, detail=str(exc)) from exc

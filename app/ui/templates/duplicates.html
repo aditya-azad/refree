@@ -1,5 +1,38 @@
 {% extends "base.html" %}
 
+{% block styles %}
+    .merge-table { table-layout: auto; width: 100%; }
+    .merge-table th, .merge-table td {
+      border-bottom: 1px solid var(--border);
+      padding: 6px 10px; vertical-align: top;
+    }
+    .merge-table .field-label {
+      font-weight: 600; font-size: 12px; color: var(--muted);
+      white-space: nowrap; width: 120px;
+    }
+    .merge-table .ref-col {
+      min-width: 200px; border-left: 1px solid var(--border);
+    }
+    .merge-table .ref-col.survivor { background: var(--accent-soft); }
+    .ref-header {
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .ref-header .ref-controls {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .ref-header .ref-title {
+      font-weight: 500; font-size: 13px; word-break: break-word;
+    }
+    .ref-header .ref-meta { color: var(--muted); font-size: 11px; }
+    .field-cell { display: flex; gap: 6px; align-items: flex-start; }
+    .field-cell input[type="radio"] { margin-top: 2px; flex: 0 0 auto; }
+    .field-cell .field-value {
+      font-size: 13px; word-break: break-word; min-width: 0;
+    }
+    .field-cell .field-value.empty { color: var(--muted); }
+    .field-cell .field-value a { color: var(--accent); }
+{% endblock %}
+
 {% block content %}
   <main>
     <div class="list-pane">
@@ -11,36 +44,63 @@
           <div class="dup-group-header">
             <span class="gtitle">{{ group.references[0].title }}</span>
             <span class="gcount">{{ group.references | length }} duplicates</span>
-            <button type="submit"
-              data-merge>Merge selected</button>
+            <button type="submit" data-merge>Merge selected</button>
           </div>
-          <table>
+          <table class="merge-table">
             <thead>
               <tr>
-                <th class="pick"></th>
-                <th>Title</th>
-                <th>Authors</th>
-                <th>Year</th>
-                <th>DOI</th>
-                <th>Citation key</th>
-                <th>PDF</th>
+                <th class="field-label">Field</th>
+                {% for ref in group.references %}
+                <th class="ref-col {{ 'survivor' if ref.id == group.survivor_id else '' }}">
+                  <div class="ref-header">
+                    <div class="ref-controls">
+                      <label><input type="checkbox"
+                        name="reference_ids" value="{{ ref.id }}"
+                        data-pick checked /> Include</label>
+                      <label><input type="radio"
+                        name="survivor_id" value="{{ ref.id }}"
+                        data-survivor
+                        {{ 'checked' if ref.id == group.survivor_id else '' }} />
+                        Survivor</label>
+                    </div>
+                    <span class="ref-title">{{ ref.title }}</span>
+                    <span class="ref-meta">{{ ref.citation_key }}</span>
+                  </div>
+                </th>
+                {% endfor %}
               </tr>
             </thead>
             <tbody>
-              {% for ref in group.references %}
-              <tr class="dup-row">
-                <td class="pick"><input type="checkbox" name="reference_ids"
-                  value="{{ ref.id }}" data-pick checked /></td>
-                <td class="title">{{ ref.title }}</td>
-                <td class="authors">{{ ref.authors | join("; ") }}</td>
-                <td class="year">{{ ref.year if ref.year else "" }}</td>
-                <td>
-                  {% if ref.doi %}<a href="https://doi.org/{{ ref.doi }}"
-                    target="_blank" rel="noopener">{{ ref.doi }}</a>
-                  {% endif %}
+              {% for field, label in merge_fields %}
+              <tr>
+                <td class="field-label">{{ label }}</td>
+                {% for ref in group.references %}
+                {% set val = ref[field] if field != "pdf_path" else ref.has_pdf %}
+                {% set is_default = group.field_defaults.get(field) == ref.id %}
+                <td class="ref-col
+                  {{ 'survivor' if ref.id == group.survivor_id else '' }}">
+                  <label class="field-cell">
+                    <input type="radio"
+                      name="field_{{ field }}" value="{{ ref.id }}"
+                      data-field="{{ field }}"
+                      {{ 'checked' if is_default else '' }} />
+                    <span class="field-value
+                      {{ 'empty' if not val }}">
+                      {% if field == "authors" %}{{ val | join("; ") }}
+                      {% elif field == "pdf_path" %}{{ "Yes" if val else "No" }}
+                      {% elif field == "doi" and val %}
+                        <a href="https://doi.org/{{ val }}"
+                          target="_blank" rel="noopener">{{ val }}</a>
+                      {% elif field == "url" and val %}
+                        <a href="{{ val }}"
+                          target="_blank" rel="noopener">{{ val }}</a>
+                      {% elif val %}{{ val }}
+                      {% else %}—
+                      {% endif %}
+                    </span>
+                  </label>
                 </td>
-                <td class="meta">{{ ref.citation_key }}</td>
-                <td>{{ "Yes" if ref.has_pdf else "No" }}</td>
+                {% endfor %}
               </tr>
               {% endfor %}
             </tbody>
@@ -60,10 +120,41 @@
     document.querySelectorAll("form[data-group]").forEach(form => {
       const button = form.querySelector("[data-merge]");
       const picks = form.querySelectorAll("[data-pick]");
+
       const update = () => {
-        const checked = Array.from(picks).filter(p => p.checked).length;
-        button.disabled = checked < 2;
+        const checkedCount = Array.from(picks).filter(p => p.checked).length;
+        button.disabled = checkedCount < 2;
+
+        picks.forEach(pick => {
+          const refId = pick.value;
+          const radios = form.querySelectorAll(
+            'input[value="' + refId + '"]');
+          radios.forEach(r => {
+            if (r !== pick) r.disabled = !pick.checked;
+          });
+          if (!pick.checked) {
+            const checked = form.querySelectorAll(
+              'input[name="survivor_id"][value="' + refId + '"]');
+            if (checked.length > 0 && checked[0].checked) {
+              checked[0].checked = false;
+              const survivorRadios = form.querySelectorAll(
+                'input[name="survivor_id"]:not(:disabled)');
+              if (survivorRadios.length > 0) survivorRadios[0].checked = true;
+            }
+          }
+        });
+
+        form.querySelectorAll('input[data-field]').forEach(r => {
+          if (r.disabled && r.checked) {
+            r.checked = false;
+            const name = r.name;
+            const available = form.querySelectorAll(
+              'input[name="' + name + '"]:not(:disabled)');
+            if (available.length > 0) available[0].checked = true;
+          }
+        });
       };
+
       picks.forEach(p => p.addEventListener("change", update));
       update();
     });

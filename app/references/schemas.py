@@ -70,3 +70,5 @@ class DuplicateGroupRead(BaseModel):
 
 class MergeRequest(BaseModel):
     reference_ids: list[UUID]
+    survivor_id: UUID | None = None
+    field_choices: dict[str, UUID] | None = None

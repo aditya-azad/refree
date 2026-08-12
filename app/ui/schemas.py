@@ -28,6 +28,8 @@ class ReferenceView(BaseModel):
 
 class DuplicateGroupView(BaseModel):
     references: list[ReferenceView]
+    survivor_id: UUID
+    field_defaults: dict[str, UUID]
 
 
 class Pagination(BaseModel):
@@ -53,4 +55,21 @@ EXTRA_COLUMNS: tuple[tuple[str, str], ...] = (
     ("url", "URL"),
     ("abstract_note", "Abstract"),
     ("has_pdf", "PDF"),
+)
+
+
+MERGE_FIELDS: tuple[tuple[str, str], ...] = (
+    ("title", "Title"),
+    ("authors", "Authors"),
+    ("year", "Year"),
+    ("doi", "DOI"),
+    ("url", "URL"),
+    ("publication_title", "Publication"),
+    ("publisher", "Publisher"),
+    ("volume", "Volume"),
+    ("issue", "Issue"),
+    ("pages", "Pages"),
+    ("language", "Language"),
+    ("abstract_note", "Abstract"),
+    ("pdf_path", "PDF"),
 )

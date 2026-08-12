@@ -10,6 +10,7 @@ from app.references.schemas import ReferenceRead
 from app.references.service import ReferencesService
 from app.ui.schemas import (
     EXTRA_COLUMNS,
+    MERGE_FIELDS,
     PAGE_SIZE,
     DuplicateGroupView,
     Pagination,
@@ -83,18 +84,37 @@ class UIService:
 
     def render_duplicates(self, request: Request) -> HTMLResponse:
         groups = self._references.find_duplicate_groups()
-        view_groups = [
-            DuplicateGroupView(references=[self._to_view(r) for r in group])
-            for group in groups
-        ]
+        view_groups: list[DuplicateGroupView] = []
+        for group in groups:
+            survivor_id, field_defaults = self._references.compute_merge_plan(
+                group
+            )
+            view_groups.append(
+                DuplicateGroupView(
+                    references=[self._to_view(r) for r in group],
+                    survivor_id=survivor_id,
+                    field_defaults=field_defaults,
+                )
+            )
         return self._templates.TemplateResponse(
             request,
             "duplicates.html",
-            {"groups": view_groups, "view": "duplicates"},
+            {
+                "groups": view_groups,
+                "view": "duplicates",
+                "merge_fields": MERGE_FIELDS,
+            },
         )
 
-    def merge_duplicates(self, reference_ids: list[UUID]) -> None:
-        self._references.merge_references(reference_ids)
+    def merge_duplicates(
+        self,
+        reference_ids: list[UUID],
+        survivor_id: UUID | None,
+        field_choices: dict[str, UUID],
+    ) -> None:
+        self._references.merge_references(
+            reference_ids, survivor_id, field_choices
+        )
 
     def _to_view(self, reference: ReferenceRead) -> ReferenceView:
         return ReferenceView(

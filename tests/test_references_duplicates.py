@@ -130,3 +130,138 @@ def test_merge_references_requires_two_distinct_ids(
     ref = service.create_reference(_sample(citation_key="a"))
     with pytest.raises(ValueError):
         service.merge_references([ref.id])
+
+
+def test_merge_references_with_survivor_id_overrides_default(
+    service: ReferencesService,
+) -> None:
+    first = service.create_reference(
+        _sample(
+            citation_key="a",
+            doi="10.1000/xyz",
+            url="https://example.com",
+            publisher="MIT Press",
+        )
+    )
+    second = service.create_reference(
+        _sample(citation_key="b", doi=None, url=None, publisher=None)
+    )
+    merged = service.merge_references(
+        [first.id, second.id], survivor_id=second.id
+    )
+    assert merged.id == second.id
+
+
+def test_merge_references_with_field_choices_picks_specified_values(
+    service: ReferencesService,
+) -> None:
+    first = service.create_reference(
+        _sample(
+            citation_key="a",
+            title="Deep Learning",
+            doi="10.1000/first",
+            url="https://first.example",
+        )
+    )
+    second = service.create_reference(
+        _sample(
+            citation_key="b",
+            title="Deep Learning (2nd Edition)",
+            doi="10.1000/second",
+            url="https://second.example",
+        )
+    )
+    merged = service.merge_references(
+        [first.id, second.id],
+        survivor_id=first.id,
+        field_choices={"title": second.id, "doi": second.id},
+    )
+    assert merged.id == first.id
+    assert merged.title == "Deep Learning (2nd Edition)"
+    assert merged.doi == "10.1000/second"
+    assert merged.url == "https://first.example"
+
+
+def test_merge_references_field_choice_authors_replaces_not_unions(
+    service: ReferencesService,
+) -> None:
+    first = service.create_reference(
+        _sample(
+            citation_key="a",
+            authors=["Ian Goodfellow", "Yoshua Bengio"],
+        )
+    )
+    second = service.create_reference(
+        _sample(citation_key="b", authors=["Yann LeCun"])
+    )
+    merged = service.merge_references(
+        [first.id, second.id],
+        survivor_id=first.id,
+        field_choices={"authors": second.id},
+    )
+    assert merged.authors == ["Yann LeCun"]
+
+
+def test_merge_references_field_choice_not_in_choices_falls_back(
+    service: ReferencesService,
+) -> None:
+    first = service.create_reference(
+        _sample(citation_key="a", doi="10.1000/first", url=None)
+    )
+    second = service.create_reference(
+        _sample(citation_key="b", doi=None, url="https://second.example")
+    )
+    merged = service.merge_references(
+        [first.id, second.id],
+        survivor_id=first.id,
+        field_choices={"doi": first.id},
+    )
+    assert merged.doi == "10.1000/first"
+    assert merged.url == "https://second.example"
+
+
+def test_compute_merge_plan_picks_most_complete_as_survivor(
+    service: ReferencesService,
+) -> None:
+    first = service.create_reference(
+        _sample(
+            citation_key="a", doi="10.1000/xyz", url="https://example.com"
+        )
+    )
+    second = service.create_reference(
+        _sample(citation_key="b", doi=None, url=None)
+    )
+    refs = service.find_duplicate_groups()[0]
+    survivor_id, field_defaults = service.compute_merge_plan(refs)
+    assert survivor_id == first.id
+    assert field_defaults["title"] == first.id
+    assert field_defaults["doi"] == first.id
+    assert field_defaults["url"] == first.id
+
+
+def test_compute_merge_plan_defaults_field_to_first_non_empty(
+    service: ReferencesService,
+) -> None:
+    first = service.create_reference(
+        _sample(citation_key="a", doi=None, url=None)
+    )
+    second = service.create_reference(
+        _sample(citation_key="b", doi="10.1000/xyz", url="https://example.com")
+    )
+    refs = service.find_duplicate_groups()[0]
+    survivor_id, field_defaults = service.compute_merge_plan(refs)
+    assert survivor_id == second.id
+    assert field_defaults["doi"] == second.id
+    assert field_defaults["url"] == second.id
+
+
+def test_merge_references_survivor_not_in_ids_raises(
+    service: ReferencesService,
+) -> None:
+    first = service.create_reference(_sample(citation_key="a"))
+    second = service.create_reference(_sample(citation_key="b"))
+    third = service.create_reference(_sample(citation_key="c"))
+    with pytest.raises(ValueError):
+        service.merge_references(
+            [first.id, second.id], survivor_id=third.id
+        )

@@ -121,6 +121,9 @@ _MERGE_FIELDS: tuple[str, ...] = (
 )
 
 
+_ALL_MERGE_FIELDS: tuple[str, ...] = ("title", "authors", *_MERGE_FIELDS)
+
+
 class _DSU:
     def __init__(self, n: int) -> None:
         self._parent: list[int] = list(range(n))
@@ -254,7 +257,12 @@ class ReferencesService:
         groups.sort(key=lambda g: g[0].title.lower())
         return groups
 
-    def merge_references(self, reference_ids: list[UUID]) -> ReferenceRead:
+    def merge_references(
+        self,
+        reference_ids: list[UUID],
+        survivor_id: UUID | None = None,
+        field_choices: dict[str, UUID] | None = None,
+    ) -> ReferenceRead:
         unique_ids: list[UUID] = []
         seen: set[UUID] = set()
         for rid in reference_ids:
@@ -265,29 +273,65 @@ class ReferencesService:
             msg = "at least two distinct references are required to merge"
             raise ValueError(msg)
         members = [self._repository.get_by_id(rid) for rid in unique_ids]
-        survivor = max(members, key=self._reference_completeness)
+        by_id: dict[UUID, Reference] = {m.id: m for m in members}
+        if survivor_id is not None:
+            if survivor_id not in by_id:
+                msg = f"survivor {survivor_id} is not among the references to merge"
+                raise ValueError(msg)
+            survivor = by_id[survivor_id]
+        else:
+            survivor = max(members, key=self._reference_completeness)
         others = [m for m in members if m.id != survivor.id]
-        self._merge_into(survivor, others)
-        self._repository.update_reference(survivor)
-        for other in others:
-            self._repository.delete_by_id(other.id)
-        return ReferenceRead.model_validate(survivor)
-
-    @staticmethod
-    def _merge_into(survivor: Reference, others: list[Reference]) -> None:
+        choices = field_choices or {}
+        for field in _ALL_MERGE_FIELDS:
+            source_id = choices.get(field)
+            if source_id is None:
+                continue
+            source = by_id.get(source_id)
+            if source is None:
+                continue
+            if field == "authors":
+                survivor.authors = list(source.authors)
+            else:
+                setattr(survivor, field, getattr(source, field, None))
         for field in _MERGE_FIELDS:
+            if field in choices:
+                continue
             if getattr(survivor, field, None) is None:
                 for other in others:
                     value = getattr(other, field, None)
                     if value is not None:
                         setattr(survivor, field, value)
                         break
-        combined_authors: list[str] = list(survivor.authors)
+        if "authors" not in choices:
+            combined_authors: list[str] = list(survivor.authors)
+            for other in others:
+                for author in other.authors:
+                    if author not in combined_authors:
+                        combined_authors.append(author)
+            survivor.authors = combined_authors
+        self._repository.update_reference(survivor)
         for other in others:
-            for author in other.authors:
-                if author not in combined_authors:
-                    combined_authors.append(author)
-        survivor.authors = combined_authors
+            self._repository.delete_by_id(other.id)
+        return ReferenceRead.model_validate(survivor)
+
+    @staticmethod
+    def compute_merge_plan(
+        references: list[ReferenceRead],
+    ) -> tuple[UUID, dict[str, UUID]]:
+        survivor = max(
+            references, key=ReferencesService._reference_completeness
+        )
+        field_defaults: dict[str, UUID] = {}
+        for field in _ALL_MERGE_FIELDS:
+            if ReferencesService._has_value(survivor, field):
+                field_defaults[field] = survivor.id
+            else:
+                for ref in references:
+                    if ReferencesService._has_value(ref, field):
+                        field_defaults[field] = ref.id
+                        break
+        return survivor.id, field_defaults
 
     @staticmethod
     def _duplicate_keys(ref: Reference) -> list[str]:
@@ -304,16 +348,23 @@ class ReferencesService:
         return keys
 
     @staticmethod
-    def _reference_completeness(ref: Reference) -> tuple[int, str]:
-        score = 0
-        for field in _MERGE_FIELDS:
-            value = getattr(ref, field, None)
-            if field == "year":
-                if value is not None:
-                    score += 1
-            elif value:
-                score += 1
-        if ref.authors:
+    def _has_value(ref: Reference | ReferenceRead, field: str) -> bool:
+        if field == "authors":
+            return bool(getattr(ref, "authors", None))
+        if field == "year":
+            return getattr(ref, "year", None) is not None
+        return bool(getattr(ref, field, None))
+
+    @staticmethod
+    def _reference_completeness(
+        ref: Reference | ReferenceRead,
+    ) -> tuple[int, str]:
+        score = sum(
+            1
+            for field in _MERGE_FIELDS
+            if ReferencesService._has_value(ref, field)
+        )
+        if ReferencesService._has_value(ref, "authors"):
             score += 1
         return score, str(ref.id)
 
