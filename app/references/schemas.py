@@ -24,6 +24,7 @@ class ReferenceCreate(BaseModel):
     pages: ProperWhitespacedStr | None = None
     language: ProperWhitespacedStr | None = None
     abstract_note: ProperWhitespacedStr | None = None
+    citation_key: str | None = None
 
 
 class ReferenceUpdate(BaseModel):

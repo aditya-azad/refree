@@ -111,9 +111,14 @@ class ReferencesService:
         return [ReferenceRead.model_validate(r) for r in references]
 
     def create_reference(self, reference: ReferenceCreate) -> ReferenceRead:
-        citation_key = self._unique_citation_key(
-            reference.title, list(reference.authors), reference.year
-        )
+        if reference.citation_key is not None:
+            citation_key = self._resolve_explicit_citation_key(
+                reference.citation_key
+            )
+        else:
+            citation_key = self._unique_citation_key(
+                reference.title, list(reference.authors), reference.year
+            )
         model = Reference(
             title=reference.title,
             authors=list(reference.authors),
@@ -130,6 +135,26 @@ class ReferencesService:
             abstract_note=reference.abstract_note,
         )
         self._repository.create_reference(model)
+        return ReferenceRead.model_validate(model)
+
+    def create_or_update_reference(
+        self, reference: ReferenceCreate
+    ) -> ReferenceRead:
+        if reference.citation_key is not None:
+            key = reference.citation_key
+        else:
+            key = self._unique_citation_key(
+                reference.title, list(reference.authors), reference.year
+            )
+        existing = self._repository.find_by_citation_key(key)
+        if existing is None:
+            return self.create_reference(reference)
+        merged = existing.model_dump()
+        merged.update(reference.model_dump(exclude_none=True))
+        merged["citation_key"] = key
+        model = Reference(**merged)
+        model.id = existing.id
+        self._repository.update_reference(model)
         return ReferenceRead.model_validate(model)
 
     def update_reference(
@@ -162,4 +187,12 @@ class ReferencesService:
             if candidate not in taken:
                 return candidate
         msg = f"exhausted citation key space for base {base!r}"
+        raise RuntimeError(msg)
+
+    def _resolve_explicit_citation_key(self, key: str) -> str:
+        for suffix in _disambiguation_suffixes():
+            candidate = key + suffix
+            if self._repository.find_by_citation_key(candidate) is None:
+                return candidate
+        msg = f"exhausted citation key space for key {key!r}"
         raise RuntimeError(msg)

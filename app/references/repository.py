@@ -84,3 +84,12 @@ class ReferencesRepository:
             return list(self._session.exec(stmt))
         except Exception as e:
             raise RepositoryError("failed to lookup citation keys") from e
+
+    def find_by_citation_key(self, key: str) -> Reference | None:
+        try:
+            stmt = select(Reference).where(Reference.citation_key == key)
+            return self._session.exec(stmt).first()
+        except Exception as e:
+            raise RepositoryError(
+                "failed to lookup reference by citation key"
+            ) from e
