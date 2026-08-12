@@ -76,6 +76,7 @@
           of {{ pagination.total_pages }}</span>
         <a href="?q={{ query|default('') }}&page={{ pagination.page + 1 }}"
           class="{{ '' if pagination.has_next else 'disabled' }}">Next →</a>
+      </div>
       {% endif %}
     </div>
     <aside class="sidebar" id="sidebar"></aside>
