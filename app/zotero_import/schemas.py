@@ -46,6 +46,7 @@ class ZoteroImportResult(BaseModel):
     updated: int = 0
     skipped: int = 0
     pdfs_imported: int = 0
+    pdfs_skipped: int = 0
     errors: list[str] = []
 
 
@@ -60,3 +61,4 @@ class ZoteroAttachment(BaseModel):
     parent_item_key: str | None = Field(default=None, alias="parentItem")
     content_type: str | None = Field(default=None, alias="contentType")
     title: str = ""
+    path: str | None = None

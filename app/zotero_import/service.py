@@ -14,6 +14,7 @@ from app.zotero_import.schemas import (
 
 _SKIP_ITEM_TYPES = frozenset({"attachment", "note"})
 _UNSAFE_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|\s]+')
+_DEDUP_SUFFIX = re.compile(r" \d+(\.\w+)?$")
 
 
 class ZoteroClient(Protocol):
@@ -22,8 +23,6 @@ class ZoteroClient(Protocol):
     def citation_keys(self, item_keys: list[str]) -> dict[str, str]: ...
 
     def list_pdf_attachments(self) -> list[ZoteroAttachment]: ...
-
-    def download_attachment(self, item_key: str) -> bytes: ...
 
 
 def _extract_year(date: str | None) -> str:
@@ -101,10 +100,12 @@ class ZoteroImportService:
         client: ZoteroClient,
         references_service: ReferencesService,
         pdf_dir: Path,
+        zotero_storage_dir: Path,
     ) -> None:
         self._client = client
         self._references_service = references_service
         self._pdf_dir = pdf_dir
+        self._zotero_storage_dir = zotero_storage_dir
 
     def import_all(self) -> ZoteroImportResult:
         result = ZoteroImportResult()
@@ -113,7 +114,6 @@ class ZoteroImportService:
         references_by_key: dict[str, ReferenceRead] = {}
         for item in items:
             if item.item_type in _SKIP_ITEM_TYPES:
-                result.skipped += 1
                 continue
             item.citation_key = keys.get(item.item_key)
             try:
@@ -150,23 +150,54 @@ class ZoteroImportService:
                 references_by_key.get(parent_key) if parent_key else None
             )
             if reference is None or reference.pdf_path:
-                result.skipped += 1
+                result.pdfs_skipped += 1
                 continue
             item = items_by_key.get(parent_key or "")
             if item is None:
-                result.skipped += 1
+                result.pdfs_skipped += 1
+                continue
+            source = self._resolve_attachment_path(attachment)
+            if source is None:
+                result.pdfs_skipped += 1
                 continue
             try:
-                pdf_bytes = self._client.download_attachment(
-                    attachment.item_key
-                )
+                pdf_bytes = source.read_bytes()
                 self._store_pdf(
                     reference.id, _build_pdf_filename(item), pdf_bytes
                 )
-            except (RepositoryError, OSError, RuntimeError, ValueError) as e:
+            except (RepositoryError, OSError, ValueError) as e:
                 result.errors.append(f"{attachment.item_key}: {e}")
                 continue
             result.pdfs_imported += 1
+
+    def _resolve_attachment_path(
+        self, attachment: ZoteroAttachment
+    ) -> Path | None:
+        if attachment.path is None:
+            return self._find_stored_pdf(attachment.item_key)
+        if attachment.path.startswith("storage:"):
+            filename = attachment.path.removeprefix("storage:")
+            return self._zotero_storage_dir / attachment.item_key / filename
+        resolved = Path(attachment.path)
+        if not resolved.is_absolute():
+            return None
+        if resolved.exists():
+            return resolved
+        stripped = _DEDUP_SUFFIX.sub(r"\1", attachment.path)
+        if stripped != attachment.path:
+            candidate = Path(stripped)
+            if candidate.exists():
+                return candidate
+        return resolved
+
+    def _find_stored_pdf(self, item_key: str) -> Path | None:
+        directory = self._zotero_storage_dir / item_key
+        if not directory.is_dir():
+            return None
+        pdfs = sorted(directory.glob("*.pdf"))
+        if not pdfs:
+            return None
+        return pdfs[0]
 
     def _store_pdf(
         self,

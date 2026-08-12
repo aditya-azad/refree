@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import httpx
 from that_depends import BaseContainer
 from that_depends.providers import Factory, Singleton, State
@@ -10,6 +12,7 @@ from app.zotero_import.service import ZoteroImportService
 
 class ZoteroImportContainer(BaseContainer):
     zotero_base_url = State[str]()
+    zotero_storage_dir = State[Path]()
     http_client = Singleton(httpx.Client, timeout=10.0)
     zotero_local_client = Singleton(
         ZoteroLocalClient,
@@ -21,4 +24,5 @@ class ZoteroImportContainer(BaseContainer):
         client=zotero_local_client.cast,
         references_service=ReferencesContainer.references_service.cast,
         pdf_dir=PDF_DIR,
+        zotero_storage_dir=zotero_storage_dir.cast,
     )

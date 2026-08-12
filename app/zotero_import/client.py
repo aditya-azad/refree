@@ -96,14 +96,3 @@ class ZoteroLocalClient:
                 break
             start += _LIMIT
         return attachments
-
-    def download_attachment(self, item_key: str) -> bytes:
-        try:
-            response = self._http.get(
-                f"{self._base_url}/api/users/0/items/{item_key}/file"
-            )
-            response.raise_for_status()
-        except httpx.HTTPError as e:
-            msg = f"failed to download attachment {item_key}"
-            raise RuntimeError(msg) from e
-        return response.content
