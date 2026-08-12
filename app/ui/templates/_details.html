@@ -1,0 +1,37 @@
+<h2>{{ reference.title }}</h2>
+<p class="authors">{{ reference.authors | join("; ") }}</p>
+<dl>
+  {% if reference.year %}<dt>Year</dt><dd>{{ reference.year }}</dd>{% endif %}
+  {% if reference.citation_key %}
+    <dt>Citation Key</dt><dd>{{ reference.citation_key }}</dd>{% endif %}
+  {% if reference.publication_title %}
+    <dt>Publication</dt><dd>{{ reference.publication_title }}</dd>{% endif %}
+  {% if reference.publisher %}
+    <dt>Publisher</dt><dd>{{ reference.publisher }}</dd>{% endif %}
+  {% if reference.volume %}
+    <dt>Volume</dt><dd>{{ reference.volume }}</dd>{% endif %}
+  {% if reference.issue %}
+    <dt>Issue</dt><dd>{{ reference.issue }}</dd>{% endif %}
+  {% if reference.pages %}
+    <dt>Pages</dt><dd>{{ reference.pages }}</dd>{% endif %}
+  {% if reference.language %}
+    <dt>Language</dt><dd>{{ reference.language }}</dd>{% endif %}
+  {% if reference.doi %}
+    <dt>DOI</dt>
+    <dd><a href="https://doi.org/{{ reference.doi }}" target="_blank"
+        rel="noopener">{{ reference.doi }}</a></dd>{% endif %}
+  {% if reference.url %}
+    <dt>URL</dt>
+    <dd><a href="{{ reference.url }}" target="_blank"
+        rel="noopener">{{ reference.url }}</a></dd>{% endif %}
+  {% if reference.abstract_note %}
+    <dt>Abstract</dt>
+    <dd>{{ reference.abstract_note }}</dd>{% endif %}
+</dl>
+{% if reference.has_pdf %}
+<a class="pdf-link"
+  href="/ui/reference/{{ reference.id }}/pdf"
+  target="_blank" rel="noopener">Open PDF</a>
+{% else %}
+<p class="pdf-missing">No PDF attached.</p>
+{% endif %}

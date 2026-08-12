@@ -9,7 +9,11 @@ from app.common.container import CommonContainer
 from app.common.database import create_db_and_tables
 from app.references.container import ReferencesContainer
 from app.references.router import router as references_router
-from app.zotero_browser_plugin.container import ZoteroBrowserPluginContainer
+from app.ui.container import UIContainer
+from app.ui.router import router as ui_router
+from app.zotero_browser_plugin.container import (
+    ZoteroBrowserPluginContainer,
+)
 from app.zotero_browser_plugin.router import router as zotero_router
 
 
@@ -25,11 +29,13 @@ app.add_middleware(DIContextMiddleware, scope=ContextScopes.REQUEST)
 _CONTAINERS = (
     CommonContainer,
     ReferencesContainer,
+    UIContainer,
     ZoteroBrowserPluginContainer,
 )
 # add routers
 app.include_router(references_router)
 app.include_router(zotero_router)
+app.include_router(ui_router)
 
 
 @app.get("/heartbeat")
