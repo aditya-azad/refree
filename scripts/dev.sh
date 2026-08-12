@@ -44,7 +44,7 @@ layout {
 
     tab name="dev" split_direction="horizontal" {
         dev name="fastapi" {
-            args "alembic upgrade head && fastapi dev --port \"$port\""
+            args "fastapi dev --port \"$port\""
         }
         dev name="openpanel" {
             args "cd openpanel && docker compose -p refree-dev-openpanel up"

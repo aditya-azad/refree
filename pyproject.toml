@@ -5,7 +5,6 @@ description = "Simple reference manager"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "alembic>=1.19.1",
     "fastapi[standard]>=0.141.1",
     "httpx>=0.28.1",
     "pyyaml>=6.0.3",
@@ -16,7 +15,6 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pyrefly>=1.2.0",
-    "pytest>=9.1.1",
     "ruff>=0.16.2",
     "types-pyyaml>=6.0.12.20260724",
 ]

@@ -1,14 +1,25 @@
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from that_depends.providers import DIContextMiddleware
 from that_depends.providers.context_resources import ContextScopes
 
 from app.common.container import CommonContainer
+from app.common.database import create_db_and_tables
 from app.references.container import ReferencesContainer
 from app.references.router import router as references_router
 from app.zotero_browser_plugin.container import ZoteroBrowserPluginContainer
 from app.zotero_browser_plugin.router import router as zotero_router
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+    create_db_and_tables()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(DIContextMiddleware, scope=ContextScopes.REQUEST)
 
 _CONTAINERS = (

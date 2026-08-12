@@ -6,13 +6,13 @@ project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$project_dir/.venv/bin/activate"
 
 echo ">>> Running pyrefly..."
-pyrefly check "$project_dir/app" "$project_dir/tests"
+pyrefly check "$project_dir/app"
 
 echo ">>> Running ruff format..."
-ruff format "$project_dir/app" "$project_dir/tests"
+ruff format "$project_dir/app"
 
 echo ">>> Running ruff check (--fix)..."
-ruff check --config "$project_dir/pyproject.toml" --fix "$project_dir/app" "$project_dir/tests"
+ruff check --config "$project_dir/pyproject.toml" --fix "$project_dir/app"
 
 echo ">>> Suppression line counts..."
 declare -A suppressions=(
@@ -29,7 +29,7 @@ total=0
 details=()
 for label in "${!suppressions[@]}"; do
   pattern="${suppressions[$label]}"
-  mapfile -t matches < <(grep -rn --include="*.py" "$pattern" "$project_dir/app" "$project_dir/tests" || true)
+  mapfile -t matches < <(grep -rn --include="*.py" "$pattern" "$project_dir/app" || true)
   count="${#matches[@]}"
   printf "%s: %s\n" "$label" "$count"
   total=$(( total + count ))
