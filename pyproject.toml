@@ -51,21 +51,14 @@ ignore = [
   "D213", # summary line position
   "COM812", # formatter compatibility
   "ISC001", # formatter compatibility
-  "S101", # allow assert, useful in tests and small projects
+  "S101", # allow assert
   "E501", # line too long
 ]
-
 
 [tool.pyrefly]
 python-version = "3.13.0"
 preset = "default"
 min-severity = "warn"
-
-
-[tool.pytest.ini_options]
-pythonpath = ["."]
-testpaths = ["tests"]
-
 
 [tool.fastapi]
 entrypoint = "app.main:app"
