@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.common.types import (
     DOI,
@@ -62,6 +62,11 @@ class ReferenceRead(BaseModel):
     pdf_path: str | None
     created_at: UTCDatetime
     updated_at: UTCDatetime
+
+    @computed_field
+    @property
+    def has_pdf(self) -> bool:
+        return bool(self.pdf_path)
 
 
 class DuplicateGroupRead(BaseModel):

@@ -6,7 +6,6 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app.common.errors import DatabaseEntryNotFoundError
-from app.references.schemas import ReferenceRead
 from app.references.service import ReferencesService
 from app.search.service import SearchService
 from app.ui.schemas import (
@@ -15,7 +14,6 @@ from app.ui.schemas import (
     PAGE_SIZE,
     DuplicateGroupView,
     Pagination,
-    ReferenceView,
 )
 
 
@@ -45,7 +43,7 @@ class UIService:
         else:
             references = self._references.list_references(PAGE_SIZE, offset)
             total = self._references.count_references()
-        entries = [self._to_view(ref) for ref in references]
+        entries = list(references)
         total_pages = (total + PAGE_SIZE - 1) // PAGE_SIZE if total else 1
         page = min(page, total_pages) if total else 1
         range_start = offset + 1 if total else 0
@@ -76,11 +74,10 @@ class UIService:
         self, request: Request, reference_id: UUID
     ) -> HTMLResponse:
         reference = self._references.get_reference(reference_id)
-        view = self._to_view(reference)
         return self._templates.TemplateResponse(
             request,
             "_details.html",
-            {"reference": view},
+            {"reference": reference},
         )
 
     def resolve_pdf_path(self, reference_id: UUID) -> Path:
@@ -103,7 +100,7 @@ class UIService:
             )
             view_groups.append(
                 DuplicateGroupView(
-                    references=[self._to_view(r) for r in group],
+                    references=list(group),
                     survivor_id=survivor_id,
                     field_defaults=field_defaults,
                 )
@@ -126,24 +123,4 @@ class UIService:
     ) -> None:
         self._references.merge_references(
             reference_ids, survivor_id, field_choices
-        )
-
-    def _to_view(self, reference: ReferenceRead) -> ReferenceView:
-        return ReferenceView(
-            id=reference.id,
-            title=reference.title,
-            authors=list(reference.authors),
-            year=reference.year,
-            citation_key=reference.citation_key,
-            doi=reference.doi,
-            url=reference.url,
-            publication_title=reference.publication_title,
-            publisher=reference.publisher,
-            volume=reference.volume,
-            issue=reference.issue,
-            pages=reference.pages,
-            language=reference.language,
-            abstract_note=reference.abstract_note,
-            pdf_path=reference.pdf_path,
-            has_pdf=bool(reference.pdf_path),
         )

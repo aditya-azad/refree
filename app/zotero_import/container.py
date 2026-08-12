@@ -4,7 +4,7 @@ import httpx
 from that_depends import BaseContainer
 from that_depends.providers import Factory, Singleton, State
 
-from app.common.config import PDF_DIR
+from app.pdf_store.container import PdfStoreContainer
 from app.references.container import ReferencesContainer
 from app.zotero_import.client import ZoteroLocalClient
 from app.zotero_import.service import ZoteroImportService
@@ -23,6 +23,6 @@ class ZoteroImportContainer(BaseContainer):
         ZoteroImportService,
         client=zotero_local_client.cast,
         references_service=ReferencesContainer.references_service.cast,
-        pdf_dir=PDF_DIR,
+        pdf_store=PdfStoreContainer.pdf_store.cast,
         zotero_storage_dir=zotero_storage_dir.cast,
     )

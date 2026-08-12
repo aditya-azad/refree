@@ -2,6 +2,7 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+from app.pdf_store.service import PdfStore
 from app.references.schemas import ReferenceCreate, ReferenceRead
 from app.zotero_import.schemas import ZoteroAttachment, ZoteroItem
 from app.zotero_import.service import ZoteroImportService
@@ -140,7 +141,7 @@ def _make_service(
             attachments=attachments,
         ),
         references_service=fake_refs,  # type: ignore[arg-type]
-        pdf_dir=pdf_dir or Path("/tmp/refree-test-pdfs"),
+        pdf_store=PdfStore(pdf_dir or Path("/tmp/refree-test-pdfs")),
         zotero_storage_dir=zotero_storage_dir or Path("/tmp/refree-test-storage"),
     )
     return service, fake_refs

@@ -1,9 +1,9 @@
 import re
 from pathlib import Path
 from typing import Protocol
-from uuid import UUID
 
 from app.common.errors import DatabaseEntryNotFoundError, RepositoryError
+from app.pdf_store.service import PdfStore
 from app.references.schemas import ReferenceCreate, ReferenceRead
 from app.references.service import ReferencesService
 from app.zotero_import.schemas import (
@@ -13,7 +13,6 @@ from app.zotero_import.schemas import (
 )
 
 _SKIP_ITEM_TYPES = frozenset({"attachment", "note"})
-_UNSAFE_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|\s]+')
 _DEDUP_SUFFIX = re.compile(r" \d+(\.\w+)?$")
 
 
@@ -63,19 +62,6 @@ def _first_author_last_name(item: ZoteroItem) -> str:
     return ""
 
 
-def _sanitize_filename_part(value: str) -> str:
-    return _UNSAFE_FILENAME_CHARS.sub("", value).strip()
-
-
-def _build_pdf_filename(item: ZoteroItem) -> str:
-    stem = _sanitize_filename_part(
-        f"{_first_author_last_name(item)}{_extract_year(item.date)}{item.title}"
-    )
-    if not stem:
-        stem = item.item_key
-    return f"{stem}.pdf"
-
-
 def _zotero_item_to_reference_create(item: ZoteroItem) -> ReferenceCreate:
     return ReferenceCreate(
         title=item.title,
@@ -99,12 +85,12 @@ class ZoteroImportService:
         self,
         client: ZoteroClient,
         references_service: ReferencesService,
-        pdf_dir: Path,
+        pdf_store: PdfStore,
         zotero_storage_dir: Path,
     ) -> None:
         self._client = client
         self._references_service = references_service
-        self._pdf_dir = pdf_dir
+        self._pdf_store = pdf_store
         self._zotero_storage_dir = zotero_storage_dir
 
     def import_all(self) -> ZoteroImportResult:
@@ -162,8 +148,16 @@ class ZoteroImportService:
                 continue
             try:
                 pdf_bytes = source.read_bytes()
-                self._store_pdf(
-                    reference.id, _build_pdf_filename(item), pdf_bytes
+                relative = self._pdf_store.store(
+                    PdfStore.build_filename(
+                        _first_author_last_name(item),
+                        _extract_year(item.date),
+                        item.title,
+                    ),
+                    pdf_bytes,
+                )
+                self._references_service.set_pdf_path(
+                    reference.id, str(relative)
                 )
             except (RepositoryError, OSError, ValueError) as e:
                 result.errors.append(f"{attachment.item_key}: {e}")
@@ -198,21 +192,3 @@ class ZoteroImportService:
         if not pdfs:
             return None
         return pdfs[0]
-
-    def _store_pdf(
-        self,
-        reference_id: UUID,
-        filename: str,
-        pdf_bytes: bytes,
-    ) -> None:
-        self._pdf_dir.mkdir(parents=True, exist_ok=True)
-        path = self._pdf_dir / filename
-        if path.exists():
-            stem, _, ext = filename.rpartition(".")
-            counter = 1
-            while path.exists():
-                path = self._pdf_dir / f"{stem}_{counter}.{ext}"
-                counter += 1
-        path.write_bytes(pdf_bytes)
-        relative = path.relative_to(self._pdf_dir)
-        self._references_service.set_pdf_path(reference_id, str(relative))

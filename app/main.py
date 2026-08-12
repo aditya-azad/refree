@@ -7,6 +7,7 @@ from that_depends.providers.context_resources import ContextScopes
 
 from app.common.container import CommonContainer
 from app.common.database import create_db_and_tables
+from app.pdf_store.container import PdfStoreContainer
 from app.references.container import ReferencesContainer
 from app.references.router import router as references_router
 from app.search.container import SearchContainer
@@ -29,6 +30,7 @@ app.add_middleware(DIContextMiddleware, scope=ContextScopes.REQUEST)
 
 _CONTAINERS = (
     CommonContainer,
+    PdfStoreContainer,
     ReferencesContainer,
     SearchContainer,
     UIContainer,

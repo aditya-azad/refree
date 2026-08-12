@@ -1,7 +1,6 @@
 import re
-from pathlib import Path
-from uuid import UUID
 
+from app.pdf_store.service import PdfStore
 from app.references.schemas import ReferenceCreate
 from app.references.service import ReferencesService
 from app.zotero_browser_plugin.schemas import (
@@ -11,12 +10,6 @@ from app.zotero_browser_plugin.schemas import (
     SavedReference,
 )
 from app.zotero_browser_plugin.session import ConnectorSessionRegistry
-
-_UNSAFE_CHARS = re.compile(r'[\\/:*?"<>|\s]+')
-
-
-def _sanitize_filename_part(value: str) -> str:
-    return _UNSAFE_CHARS.sub("", value).strip()
 
 
 def _first_author_last_name(item: ConnectorItem) -> str:
@@ -75,23 +68,16 @@ def _connector_item_to_reference_create(item: ConnectorItem) -> ReferenceCreate:
     )
 
 
-def _build_pdf_filename(last_name: str, year: str, title: str) -> str:
-    stem = _sanitize_filename_part(f"{last_name}{year}{title}")
-    if not stem:
-        stem = "untitled"
-    return f"{stem}.pdf"
-
-
 class ZoteroBrowserPluginService:
     def __init__(
         self,
         references_service: ReferencesService,
         session_registry: ConnectorSessionRegistry,
-        pdf_dir: Path,
+        pdf_store: PdfStore,
     ) -> None:
         self._references_service = references_service
         self._session_registry = session_registry
-        self._pdf_dir = pdf_dir
+        self._pdf_store = pdf_store
 
     def ingest_items(
         self,
@@ -121,13 +107,17 @@ class ZoteroBrowserPluginService:
                 f"parentItemID={parent_id!r}"
             )
             raise ValueError(msg)
-        filename = _build_pdf_filename(
+        filename = PdfStore.build_filename(
             _first_author_last_name(entry.item),
             _extract_year(entry.item.date),
             entry.item.title,
         )
-        return self._store_pdf(
-            entry.reference.reference_id, filename, pdf_bytes
+        relative = self._pdf_store.store(filename, pdf_bytes)
+        self._references_service.set_pdf_path(
+            entry.reference.reference_id, str(relative)
+        )
+        return PdfAttachment(
+            reference_id=entry.reference.reference_id, path=relative
         )
 
     def save_standalone_pdf(
@@ -140,29 +130,12 @@ class ZoteroBrowserPluginService:
         created = self._references_service.create_reference(
             ReferenceCreate(title=title)
         )
-        filename = _build_pdf_filename("", "", title)
-        return self._store_pdf(created.id, filename, pdf_bytes)
+        filename = PdfStore.build_filename("", "", title)
+        relative = self._pdf_store.store(filename, pdf_bytes)
+        self._references_service.set_pdf_path(created.id, str(relative))
+        return PdfAttachment(reference_id=created.id, path=relative)
 
     def _persist_item(self, item: ConnectorItem) -> SavedReference:
         reference_create = _connector_item_to_reference_create(item)
         stored = self._references_service.create_reference(reference_create)
         return SavedReference(reference_id=stored.id)
-
-    def _store_pdf(
-        self,
-        reference_id: UUID,
-        filename: str,
-        pdf_bytes: bytes,
-    ) -> PdfAttachment:
-        self._pdf_dir.mkdir(parents=True, exist_ok=True)
-        path = self._pdf_dir / filename
-        if path.exists():
-            stem, _, ext = filename.rpartition(".")
-            counter = 1
-            while path.exists():
-                path = self._pdf_dir / f"{stem}_{counter}.{ext}"
-                counter += 1
-        path.write_bytes(pdf_bytes)
-        relative = path.relative_to(self._pdf_dir)
-        self._references_service.set_pdf_path(reference_id, str(relative))
-        return PdfAttachment(reference_id=reference_id, path=relative)
