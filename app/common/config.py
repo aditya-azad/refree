@@ -15,6 +15,7 @@ class ConfigError(Exception):
 
 
 class _Settings(BaseModel):
+    app_host: str = "127.0.0.1"
     app_port: int = 8000
     refree_dir: Path = _DEFAULT_REFREE_DIR
 
@@ -86,5 +87,5 @@ settings = _load_settings()
 _ensure_refree_dir(settings)
 
 REFREE_DIR = settings.refree_dir
-DATABASE_URL = settings.database_url
+APP_HOST = settings.app_host
 APP_PORT = settings.app_port

@@ -1,2 +1,6 @@
 refree_dir: "~/.refree/data"
-app_port: 8000
+app_host: "127.0.0.1"
+# The Zotero Connector probes 127.0.0.1:23119 — set this to 23119 so the
+# unmodified extension can talk to refree as if it were the Zotero desktop
+# client. Caveat: a real Zotero client and refree cannot run on 23119 at once.
+app_port: 23119

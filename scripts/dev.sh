@@ -15,6 +15,9 @@ eval "\$*"
 SH
 chmod +x "$env_script"
 
+host=$(PYTHONPATH="$project_dir" "$project_dir/.venv/bin/python" -c \
+    "from app.common.config import APP_HOST; print(APP_HOST)" 2>/dev/null \
+    || echo 127.0.0.1)
 port=$(PYTHONPATH="$project_dir" "$project_dir/.venv/bin/python" -c \
     "from app.common.config import APP_PORT; print(APP_PORT)" 2>/dev/null \
     || echo 8000)
@@ -44,7 +47,7 @@ layout {
 
     tab name="dev" split_direction="horizontal" {
         dev name="fastapi" {
-            args "fastapi dev --port \"$port\""
+            args "fastapi dev --host \"$host\" --port \"$port\""
         }
         dev name="openpanel" {
             args "cd openpanel && docker compose -p refree-dev-openpanel up"

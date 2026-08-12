@@ -1,22 +1,61 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.common.types import DOI, URL, Authors
+from app.common.types import DOI, URL
 
 
-class ZoteroItemCreate(BaseModel):
-    zotero_key: str
-    item_type: str
+class ConnectorCreator(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    creator_type: str = Field(alias="creatorType")
+    first_name: str | None = Field(default=None, alias="firstName")
+    last_name: str | None = Field(default=None, alias="lastName")
+    name: str | None = None
+
+
+class ConnectorItem(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    item_type: str = Field(alias="itemType")
     title: str
-    authors: Authors = []
-    doi: DOI | None = None
-    url: URL | None = None
-    raw: dict[str, object] | None = None
+    creators: list[ConnectorCreator] = []
+    doi: DOI | None = Field(default=None, alias="DOI")
+    url: URL | None = Field(default=None, alias="url")
+    date: str | None = None
+    publication_title: str | None = Field(
+        default=None, alias="publicationTitle"
+    )
+    publisher: str | None = None
+    volume: str | None = None
+    issue: str | None = None
+    pages: str | None = None
+    language: str | None = None
+    abstract_note: str | None = Field(default=None, alias="abstractNote")
+    key: str | None = None
+    uri: str | None = None
+
+    @field_validator("doi", "url", mode="before")
+    @classmethod
+    def _empty_to_none(cls, value: object) -> object:
+        if value == "":
+            return None
+        return value
 
 
-class ZoteroItemRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class ConnectorSaveItemsRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
 
+    items: list[ConnectorItem]
+    session_id: str = Field(alias="sessionID")
+    uri: str | None = None
+
+
+class SaveItemsResponse(BaseModel):
+    items: list[ConnectorItem]
+
+
+class SavedReference(BaseModel):
     zotero_key: str
-    item_id: UUID
+    reference_id: UUID
+    bibtex: str
