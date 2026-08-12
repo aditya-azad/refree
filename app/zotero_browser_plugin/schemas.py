@@ -59,7 +59,6 @@ class SaveItemsResponse(BaseModel):
 
 class SavedReference(BaseModel):
     reference_id: UUID
-    bibtex: str
 
 
 class ConnectorAttachmentMetadata(BaseModel):

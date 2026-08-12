@@ -20,7 +20,3 @@ class UsedAsForeignKeyError(Exception):
 
     def __init__(self, message: str = "") -> None:
         super().__init__(message or "row is a foreign key in another table")
-
-
-class AnalyticsError(Exception):
-    """Raised when an analytics event cannot be dispatched to the provider."""

@@ -58,6 +58,23 @@ def _connector_year(item: ConnectorItem) -> int | None:
     return int(year_str) if year_str else None
 
 
+def _connector_item_to_reference_create(item: ConnectorItem) -> ReferenceCreate:
+    return ReferenceCreate(
+        title=item.title,
+        authors=_connector_authors(item),
+        year=_connector_year(item),
+        doi=item.doi,
+        url=item.url,
+        publication_title=item.publication_title,
+        publisher=item.publisher,
+        volume=item.volume,
+        issue=item.issue,
+        pages=item.pages,
+        language=item.language,
+        abstract_note=item.abstract_note,
+    )
+
+
 def _build_pdf_filename(last_name: str, year: str, title: str) -> str:
     stem = _sanitize_filename_part(f"{last_name}{year}{title}")
     if not stem:
@@ -127,25 +144,9 @@ class ZoteroBrowserPluginService:
         return self._store_pdf(created.id, filename, pdf_bytes)
 
     def _persist_item(self, item: ConnectorItem) -> SavedReference:
-        reference_create = ReferenceCreate(
-            title=item.title,
-            authors=_connector_authors(item),
-            year=_connector_year(item),
-            doi=item.doi,
-            url=item.url,
-            publication_title=item.publication_title,
-            publisher=item.publisher,
-            volume=item.volume,
-            issue=item.issue,
-            pages=item.pages,
-            language=item.language,
-            abstract_note=item.abstract_note,
-        )
+        reference_create = _connector_item_to_reference_create(item)
         stored = self._references_service.create_reference(reference_create)
-        return SavedReference(
-            reference_id=stored.id,
-            bibtex="",
-        )
+        return SavedReference(reference_id=stored.id)
 
     def _store_pdf(
         self,

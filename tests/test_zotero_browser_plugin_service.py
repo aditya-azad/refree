@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.references.schemas import ItemCreate, ItemRead
+from app.references.schemas import ReferenceCreate, ReferenceRead
 from app.zotero_browser_plugin.schemas import (
     ConnectorAttachmentMetadata,
     ConnectorItem,
@@ -13,19 +13,43 @@ from app.zotero_browser_plugin.service import ZoteroBrowserPluginService
 from app.zotero_browser_plugin.session import ConnectorSessionRegistry
 
 
+def _fake_reference_read(reference: ReferenceCreate) -> ReferenceRead:
+    now = datetime.now(UTC)
+    return ReferenceRead(
+        id=uuid.uuid4(),
+        title=reference.title,
+        authors=list(reference.authors),
+        year=reference.year,
+        citation_key="fake",
+        doi=reference.doi,
+        url=reference.url,
+        publication_title=reference.publication_title,
+        publisher=reference.publisher,
+        volume=reference.volume,
+        issue=reference.issue,
+        pages=reference.pages,
+        language=reference.language,
+        abstract_note=reference.abstract_note,
+        pdf_path=None,
+        created_at=now,
+        updated_at=now,
+    )
+
+
 class FakeReferencesService:
     def __init__(self) -> None:
-        self.created: list[ItemCreate] = []
+        self.created: list[ReferenceCreate] = []
+        self.pdf_paths: list[tuple[uuid.UUID, str]] = []
 
-    def create_item(self, item: ItemCreate) -> ItemRead:
-        self.created.append(item)
-        return ItemRead(
-            id=uuid.uuid4(),
-            name=item.name,
-            description=item.description,
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
-        )
+    def create_reference(self, reference: ReferenceCreate) -> ReferenceRead:
+        self.created.append(reference)
+        return _fake_reference_read(reference)
+
+    def set_pdf_path(
+        self, reference_id: uuid.UUID, pdf_path: str
+    ) -> ReferenceRead:
+        self.pdf_paths.append((reference_id, pdf_path))
+        return _fake_reference_read(ReferenceCreate(title="updated"))
 
 
 def _item(
@@ -61,12 +85,11 @@ def test_ingest_items_persists_and_returns_saved_references(tmp_path: Path) -> N
     )
 
     assert len(result) == 2
-    assert [r.zotero_key for r in result] == ["KEYAAA", "KEYBBB"]
-    assert all(r.bibtex == "" for r in result)
     assert all(r.reference_id is not None for r in result)
     assert len(fake_refs.created) == 2
-    assert fake_refs.created[0].name == "A Paper"
-    assert fake_refs.created[0].description == "KEYAAA"
+    assert fake_refs.created[0].title == "A Paper"
+    assert fake_refs.created[0].doi == "10.1234/example"
+    assert fake_refs.created[0].url == "https://example.com/paper"
 
 
 def test_ingest_items_registers_references_in_session(tmp_path: Path) -> None:
@@ -81,7 +104,7 @@ def test_ingest_items_registers_references_in_session(tmp_path: Path) -> None:
     session = registry.get("sess-1")
     assert session is not None
     assert set(session.entries.keys()) == {"ID1", "ID2"}
-    assert session.entries["ID1"].reference.zotero_key == "KEYAAA"
+    assert session.entries["ID1"].item.key == "KEYAAA"
     assert session.entries["ID1"].item.item_id == "ID1"
 
 
@@ -111,8 +134,8 @@ def test_ingest_items_handles_missing_key(tmp_path: Path) -> None:
     )
     result = service.ingest_items("sess-1", [item])
 
-    assert result[0].zotero_key == ""
-    assert fake_refs.created[0].description == ""
+    assert result[0].reference_id is not None
+    assert fake_refs.created[0].title == "No Key Paper"
 
 
 def test_attach_pdf_naming_uses_author_year_title(tmp_path: Path) -> None:
@@ -263,7 +286,7 @@ def test_save_standalone_pdf_creates_reference_and_stores_file(
     assert attachment.path == Path("StandalonePDF.pdf")
     assert (tmp_path / attachment.path).read_bytes() == b"%PDF-1.4 standalone"
     assert len(fake_refs.created) == 1
-    assert fake_refs.created[0].name == "Standalone PDF"
+    assert fake_refs.created[0].title == "Standalone PDF"
 
 
 def test_save_standalone_pdf_defaults_title(tmp_path: Path) -> None:
@@ -274,7 +297,7 @@ def test_save_standalone_pdf_defaults_title(tmp_path: Path) -> None:
     meta = ConnectorAttachmentMetadata.model_validate({"url": "https://x/y.pdf"})
     attachment = service.save_standalone_pdf("sess-1", meta, b"%PDF-1.4")
     assert attachment.path == Path("UntitledAttachment.pdf")
-    assert fake_refs.created[0].name == "Untitled Attachment"
+    assert fake_refs.created[0].title == "Untitled Attachment"
 
 
 def test_attach_pdf_creates_pdf_dir_if_missing(tmp_path: Path) -> None:

@@ -14,6 +14,9 @@ ruff format "$project_dir/app"
 echo ">>> Running ruff check (--fix)..."
 ruff check --config "$project_dir/pyproject.toml" --fix "$project_dir/app"
 
+echo ">>> Running pytest..."
+pytest "$project_dir/tests"
+
 echo ">>> Suppression line counts..."
 declare -A suppressions=(
   ["noqa"]="noqa"

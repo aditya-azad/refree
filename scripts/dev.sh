@@ -49,9 +49,6 @@ layout {
         dev name="fastapi" {
             args "fastapi dev --host \"$host\" --port \"$port\""
         }
-        dev name="openpanel" {
-            args "cd openpanel && docker compose -p refree-dev-openpanel up"
-        }
     }
 }
 pane_frames true

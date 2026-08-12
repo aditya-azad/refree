@@ -1,6 +1,5 @@
 import re
 from collections.abc import Iterator
-from datetime import UTC, datetime
 from uuid import UUID
 
 from app.references.models import Reference
@@ -112,7 +111,6 @@ class ReferencesService:
         return [ReferenceRead.model_validate(r) for r in references]
 
     def create_reference(self, reference: ReferenceCreate) -> ReferenceRead:
-        now = datetime.now(UTC)
         citation_key = self._unique_citation_key(
             reference.title, list(reference.authors), reference.year
         )
@@ -130,8 +128,6 @@ class ReferencesService:
             pages=reference.pages,
             language=reference.language,
             abstract_note=reference.abstract_note,
-            created_at=now,
-            updated_at=now,
         )
         self._repository.create_reference(model)
         return ReferenceRead.model_validate(model)
@@ -144,7 +140,6 @@ class ReferencesService:
         merged.update(reference.model_dump(exclude_unset=True))
         model = Reference(**merged)
         model.id = existing.id
-        model.updated_at = datetime.now(UTC)
         self._repository.update_reference(model)
         return ReferenceRead.model_validate(model)
 
@@ -154,7 +149,6 @@ class ReferencesService:
     def set_pdf_path(self, reference_id: UUID, pdf_path: str) -> ReferenceRead:
         existing = self._repository.get_by_id(reference_id)
         existing.pdf_path = pdf_path
-        existing.updated_at = datetime.now(UTC)
         self._repository.update_reference(existing)
         return ReferenceRead.model_validate(existing)
 
