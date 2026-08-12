@@ -25,6 +25,7 @@ class Reference(SQLModel, table=True):
     pages: str | None = Field(default=None, nullable=True)
     language: str | None = Field(default=None, nullable=True)
     abstract_note: str | None = Field(default=None, nullable=True)
+    pdf_path: str | None = Field(default=None, nullable=True)
     created_at: UTCDatetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=Column(DateTime(timezone=True), nullable=False),

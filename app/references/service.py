@@ -151,6 +151,13 @@ class ReferencesService:
     def delete_reference(self, reference_id: UUID) -> None:
         self._repository.delete_by_id(reference_id)
 
+    def set_pdf_path(self, reference_id: UUID, pdf_path: str) -> ReferenceRead:
+        existing = self._repository.get_by_id(reference_id)
+        existing.pdf_path = pdf_path
+        existing.updated_at = datetime.now(UTC)
+        self._repository.update_reference(existing)
+        return ReferenceRead.model_validate(existing)
+
     def _unique_citation_key(
         self, title: str, authors: list[str], year: int | None
     ) -> str:

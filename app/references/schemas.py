@@ -58,5 +58,6 @@ class ReferenceRead(BaseModel):
     pages: str | None
     language: str | None
     abstract_note: str | None
+    pdf_path: str | None
     created_at: UTCDatetime
     updated_at: UTCDatetime

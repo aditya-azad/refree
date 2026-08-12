@@ -162,6 +162,6 @@ class ZoteroBrowserPluginService:
                 path = self._pdf_dir / f"{stem}_{counter}.{ext}"
                 counter += 1
         path.write_bytes(pdf_bytes)
-        return PdfAttachment(
-            reference_id=reference_id, path=path.relative_to(self._pdf_dir)
-        )
+        relative = path.relative_to(self._pdf_dir)
+        self._references_service.set_pdf_path(reference_id, str(relative))
+        return PdfAttachment(reference_id=reference_id, path=relative)
