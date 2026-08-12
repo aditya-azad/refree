@@ -11,12 +11,15 @@ trap 'rm -f "$env_script"' EXIT
 cat > "$env_script" <<SH
 #!/bin/bash
 [[ -f "$project_dir/.venv/bin/activate" ]] && source "$project_dir/.venv/bin/activate"
-[[ -f "$project_dir/.env" ]] && { set -a; source "$project_dir/.env"; set +a; }
 eval "\$*"
 SH
 chmod +x "$env_script"
 
-layout=$(cat <<'KDL'
+port=$(PYTHONPATH="$project_dir" "$project_dir/.venv/bin/python" -c \
+    "from app.common.config import APP_PORT; print(APP_PORT)" 2>/dev/null \
+    || echo 8000)
+
+layout=$(cat <<KDL
 layout {
     cwd "PROJECT_DIR"
 
@@ -41,10 +44,10 @@ layout {
 
     tab name="dev" split_direction="horizontal" {
         dev name="fastapi" {
-            args "alembic upgrade head && fastapi dev --port \"${APP_PORT:-8000}\""
+            args "alembic upgrade head && fastapi dev --port \"$port\""
         }
         dev name="openpanel" {
-            args "cd openpanel && docker compose -p refree-dev-openpanel --env-file \"PROJECT_DIR/.env\" up"
+            args "cd openpanel && docker compose -p refree-dev-openpanel up"
         }
     }
 }

@@ -5,9 +5,7 @@ set -euo pipefail
 project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$project_dir/.venv/bin/activate"
 
-set -a
-source "$project_dir/.env"
-set +a
+
 
 usage() {
     cat <<'USAGE'
