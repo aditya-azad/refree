@@ -106,9 +106,14 @@ class ReferencesService:
         reference = self._repository.get_by_id(reference_id)
         return ReferenceRead.model_validate(reference)
 
-    def list_references(self, limit: int = 100) -> list[ReferenceRead]:
-        references = self._repository.list_references(limit)
+    def list_references(
+        self, limit: int = 100, offset: int = 0
+    ) -> list[ReferenceRead]:
+        references = self._repository.list_references(limit, offset)
         return [ReferenceRead.model_validate(r) for r in references]
+
+    def count_references(self) -> int:
+        return self._repository.count_references()
 
     def create_reference(self, reference: ReferenceCreate) -> ReferenceRead:
         if reference.citation_key is not None:

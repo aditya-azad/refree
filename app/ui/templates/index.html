@@ -99,6 +99,21 @@
     }
     .pdf-link:hover { filter: brightness(1.05); }
     .pdf-missing { color: var(--muted); font-size: 12px; margin-top: 12px; }
+    .pagination {
+      display: flex; align-items: center; gap: 12px; padding: 8px 10px;
+      border-top: 1px solid var(--border); font-size: 12px;
+      color: var(--muted); position: sticky; bottom: 0; background: var(--bg);
+    }
+    .pagination .spacer { flex: 1 1 auto; }
+    .pagination a {
+      color: var(--accent); text-decoration: none; padding: 4px 10px;
+      border: 1px solid var(--border); border-radius: 4px;
+    }
+    .pagination a:hover { background: var(--accent-soft); }
+    .pagination a.disabled {
+      color: var(--muted); pointer-events: none; opacity: 0.5;
+    }
+    .pagination .current { font-weight: 600; color: var(--fg); }
   </style>
 </head>
 <body>
@@ -159,6 +174,19 @@
       </table>
       {% else %}
       <div class="no-rows">No papers in the library yet.</div>
+      {% endif %}
+      {% if pagination.total > 0 %}
+      <div class="pagination">
+        <span>Showing {{ pagination.range_start }}–{{ pagination.range_end }}
+          of {{ pagination.total }}</span>
+        <span class="spacer"></span>
+        <a href="?page={{ pagination.page - 1 }}"
+          class="{{ '' if pagination.has_prev else 'disabled' }}">← Prev</a>
+        <span class="current">Page {{ pagination.page }}
+          of {{ pagination.total_pages }}</span>
+        <a href="?page={{ pagination.page + 1 }}"
+          class="{{ '' if pagination.has_next else 'disabled' }}">Next →</a>
+      </div>
       {% endif %}
     </div>
     <aside class="sidebar" id="sidebar"></aside>

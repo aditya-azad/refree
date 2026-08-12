@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
@@ -26,12 +27,24 @@ class ReferencesRepository:
             )
         return reference
 
-    def list_references(self, limit: int) -> list[Reference]:
+    def list_references(self, limit: int, offset: int = 0) -> list[Reference]:
         try:
-            stmt = select(Reference).limit(limit)
+            stmt = (
+                select(Reference)
+                .order_by(Reference.title)
+                .limit(limit)
+                .offset(offset)
+            )
             return list(self._session.exec(stmt))
         except Exception as e:
             raise RepositoryError("failed to list references") from e
+
+    def count_references(self) -> int:
+        try:
+            stmt = select(func.count()).select_from(Reference)
+            return self._session.exec(stmt).one()
+        except Exception as e:
+            raise RepositoryError("failed to count references") from e
 
     def create_reference(self, reference: Reference) -> None:
         try:

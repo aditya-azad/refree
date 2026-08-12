@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse
 
 from app.common.errors import DatabaseEntryNotFoundError, RepositoryError
@@ -15,9 +15,13 @@ UIServiceDep = Annotated[UIService, Depends(UIContainer.ui_service)]
 
 
 @router.get("/", response_class=HTMLResponse)
-async def index(request: Request, service: UIServiceDep) -> HTMLResponse:
+async def index(
+    request: Request,
+    service: UIServiceDep,
+    page: Annotated[int, Query(ge=1)] = 1,
+) -> HTMLResponse:
     try:
-        return service.render_index(request)
+        return service.render_index(request, page)
     except RepositoryError as exc:
         logger.error("failed to render index: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc

@@ -26,9 +26,10 @@ ReferencesServiceDep = Annotated[
 async def list_references(
     service: ReferencesServiceDep,
     limit: Annotated[int, Query(ge=1)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[ReferenceRead]:
     try:
-        return service.list_references(limit)
+        return service.list_references(limit, offset)
     except RepositoryError as exc:
         logger.error("failed to list references: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc

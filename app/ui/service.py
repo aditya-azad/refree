@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 from app.common.errors import DatabaseEntryNotFoundError
 from app.references.schemas import ReferenceRead
 from app.references.service import ReferencesService
-from app.ui.schemas import EXTRA_COLUMNS, ReferenceView
+from app.ui.schemas import EXTRA_COLUMNS, PAGE_SIZE, Pagination, ReferenceView
 
 
 class UIService:
@@ -22,13 +22,34 @@ class UIService:
         self._pdf_dir = pdf_dir
         self._templates = templates
 
-    def render_index(self, request: Request) -> HTMLResponse:
-        references = self._references.list_references()
+    def render_index(self, request: Request, page: int = 1) -> HTMLResponse:
+        page = max(page, 1)
+        offset = (page - 1) * PAGE_SIZE
+        references = self._references.list_references(PAGE_SIZE, offset)
+        total = self._references.count_references()
         entries = [self._to_view(ref) for ref in references]
+        total_pages = (total + PAGE_SIZE - 1) // PAGE_SIZE if total else 1
+        page = min(page, total_pages) if total else 1
+        range_start = offset + 1 if total else 0
+        range_end = min(offset + len(entries), total)
+        pagination = Pagination(
+            page=page,
+            page_size=PAGE_SIZE,
+            total=total,
+            total_pages=total_pages,
+            has_prev=page > 1,
+            has_next=page < total_pages,
+            range_start=range_start,
+            range_end=range_end,
+        )
         return self._templates.TemplateResponse(
             request,
             "index.html",
-            {"entries": entries, "extra_columns": EXTRA_COLUMNS},
+            {
+                "entries": entries,
+                "extra_columns": EXTRA_COLUMNS,
+                "pagination": pagination,
+            },
         )
 
     def render_details(
