@@ -22,9 +22,16 @@ ZoteroBrowserPluginServiceDep = Annotated[
 ]
 
 
-@router.get("/connector/ping")
-async def ping() -> dict[str, str]:
-    return {"status": "ok"}
+@router.api_route("/connector/ping", methods=["GET", "POST"])
+async def ping() -> dict[str, object]:
+    return {
+        "prefs": {
+            "automaticSnapshots": False,
+            "downloadAssociatedFiles": True,
+            "supportsAttachmentUpload": True,
+            "supportsTagsAutocomplete": True,
+        },
+    }
 
 
 @router.post(
@@ -47,17 +54,24 @@ async def save_items(
     return SaveItemsResponse(items=parsed.items)
 
 
-@router.get("/connector/getSelectedCollection")
+@router.api_route("/connector/getSelectedCollection", methods=["GET", "POST"])
 async def get_selected_collection() -> dict[str, object]:
     return {
         "libraryID": 1,
-        "collectionID": None,
         "libraryName": "refree",
+        "libraryEditable": True,
+        "filesEditable": True,
         "editable": True,
+        "id": None,
+        "name": "refree",
+        "targets": [
+            {"id": "L1", "name": "refree", "filesEditable": True, "level": 0}
+        ],
+        "tags": {},
     }
 
 
-@router.get("/connector/hasAttachmentResolvers")
+@router.api_route("/connector/hasAttachmentResolvers", methods=["GET", "POST"])
 async def has_attachment_resolvers() -> dict[str, bool]:
     return {"value": False}
 
