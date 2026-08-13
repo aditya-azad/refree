@@ -1,5 +1,7 @@
 # Refree
 
+![Refree screenshot](assets/screenshot.png)
+
 A simple, self-hosted reference manager. Import references from Zotero, store
 and serve attached PDFs, search your library, and merge duplicates — all from a
 small FastAPI service with a built-in web UI.
@@ -58,6 +60,40 @@ uv sync
 ./scripts/dev.sh
 #   or, without zellij:
 #   fastapi dev --host 127.0.0.1 --port 23119 app/main:app
+```
+
+Open the UI at `http://127.0.0.1:23119/` and check health at
+`http://127.0.0.1:23119/heartbeat`.
+
+## Install & autostart (Linux)
+
+`scripts/install.sh` is a one-shot bash script that installs refree into a
+`.venv` with `uv`, writes a default `~/.refree/config.yaml` if none exists, and
+registers a **systemd user service** so refree starts automatically at boot:
+
+```bash
+./scripts/install.sh
+```
+
+It is idempotent — re-run it after pulling updates to reinstall dependencies
+and refresh the service unit. The script:
+
+1. installs `uv` if missing, then runs `uv sync`;
+2. writes a default config (`refree_dir`, `app_host`, `app_port: 23119`) only if
+   `~/.refree/config.yaml` does not already exist;
+3. reads `app_host`/`app_port` from the config and writes
+   `~/.config/systemd/user/refree.service` pointing at the project's
+   `.venv/bin/fastapi run`;
+4. enables lingering (`loginctl enable-linger`) so user services start at boot
+   even before login, then enables and (re)starts `refree.service`.
+
+After install:
+
+```bash
+systemctl --user status refree        # check status
+journalctl --user -u refree -f        # follow logs
+systemctl --user stop refree          # stop
+systemctl --user disable refree        # stop autostart at boot
 ```
 
 Open the UI at `http://127.0.0.1:23119/` and check health at
