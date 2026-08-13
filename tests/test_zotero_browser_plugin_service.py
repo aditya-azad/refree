@@ -68,7 +68,11 @@ def _item(
             "key": key,
             "date": date,
             "creators": [
-                {"creatorType": "author", "firstName": "Jane", "lastName": last_name}
+                {
+                    "creatorType": "author",
+                    "firstName": "Jane",
+                    "lastName": last_name,
+                }
             ],
             "DOI": "10.1234/example",
             "url": "https://example.com/paper",
@@ -76,13 +80,18 @@ def _item(
     )
 
 
-def test_ingest_items_persists_and_returns_saved_references(tmp_path: Path) -> None:
+def test_ingest_items_persists_and_returns_saved_references(
+    tmp_path: Path,
+) -> None:
     fake_refs = FakeReferencesService()
     registry = ConnectorSessionRegistry()
-    service = ZoteroBrowserPluginService(fake_refs, registry, PdfStore(tmp_path))
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
 
     result = service.ingest_items(
-        "sess-1", [_item("KEYAAA", item_id="ID1"), _item("KEYBBB", item_id="ID2")]
+        "sess-1",
+        [_item("KEYAAA", item_id="ID1"), _item("KEYBBB", item_id="ID2")],
     )
 
     assert len(result) == 2
@@ -96,10 +105,13 @@ def test_ingest_items_persists_and_returns_saved_references(tmp_path: Path) -> N
 def test_ingest_items_registers_references_in_session(tmp_path: Path) -> None:
     fake_refs = FakeReferencesService()
     registry = ConnectorSessionRegistry()
-    service = ZoteroBrowserPluginService(fake_refs, registry, PdfStore(tmp_path))
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
 
     service.ingest_items(
-        "sess-1", [_item("KEYAAA", item_id="ID1"), _item("KEYBBB", item_id="ID2")]
+        "sess-1",
+        [_item("KEYAAA", item_id="ID1"), _item("KEYBBB", item_id="ID2")],
     )
 
     session = registry.get("sess-1")
@@ -112,7 +124,9 @@ def test_ingest_items_registers_references_in_session(tmp_path: Path) -> None:
 def test_different_sessions_do_not_cross_contaminate(tmp_path: Path) -> None:
     fake_refs = FakeReferencesService()
     registry = ConnectorSessionRegistry()
-    service = ZoteroBrowserPluginService(fake_refs, registry, PdfStore(tmp_path))
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
 
     service.ingest_items("sess-1", [_item("KEYAAA", item_id="ID1")])
     service.ingest_items("sess-2", [_item("KEYBBB", item_id="ID2")])
@@ -128,7 +142,9 @@ def test_different_sessions_do_not_cross_contaminate(tmp_path: Path) -> None:
 def test_ingest_items_handles_missing_key(tmp_path: Path) -> None:
     fake_refs = FakeReferencesService()
     registry = ConnectorSessionRegistry()
-    service = ZoteroBrowserPluginService(fake_refs, registry, PdfStore(tmp_path))
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
 
     item = ConnectorItem.model_validate(
         {"itemType": "journalArticle", "title": "No Key Paper", "id": "IDX"}
@@ -142,7 +158,9 @@ def test_ingest_items_handles_missing_key(tmp_path: Path) -> None:
 def test_attach_pdf_naming_uses_author_year_title(tmp_path: Path) -> None:
     fake_refs = FakeReferencesService()
     registry = ConnectorSessionRegistry()
-    service = ZoteroBrowserPluginService(fake_refs, registry, PdfStore(tmp_path))
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
 
     saved = service.ingest_items(
         "sess-1",
@@ -159,7 +177,11 @@ def test_attach_pdf_naming_uses_author_year_title(tmp_path: Path) -> None:
     parent_id = saved[0].reference_id
 
     meta = ConnectorAttachmentMetadata.model_validate(
-        {"parentItemID": "ID1", "title": "Full Text PDF", "url": "https://x/y.pdf"}
+        {
+            "parentItemID": "ID1",
+            "title": "Full Text PDF",
+            "url": "https://x/y.pdf",
+        }
     )
     attachment = service.attach_pdf("sess-1", meta, b"%PDF-1.4 bytes")
 
@@ -171,7 +193,9 @@ def test_attach_pdf_naming_uses_author_year_title(tmp_path: Path) -> None:
 def test_attach_pdf_naming_without_date(tmp_path: Path) -> None:
     fake_refs = FakeReferencesService()
     registry = ConnectorSessionRegistry()
-    service = ZoteroBrowserPluginService(fake_refs, registry, PdfStore(tmp_path))
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
 
     service.ingest_items("sess-1", [_item("KEYAAA", item_id="ID1")])
     meta = ConnectorAttachmentMetadata.model_validate(
@@ -185,7 +209,9 @@ def test_attach_pdf_naming_without_date(tmp_path: Path) -> None:
 def test_attach_pdf_naming_falls_back_to_untitled(tmp_path: Path) -> None:
     fake_refs = FakeReferencesService()
     registry = ConnectorSessionRegistry()
-    service = ZoteroBrowserPluginService(fake_refs, registry, PdfStore(tmp_path))
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
 
     item = ConnectorItem.model_validate(
         {"itemType": "journalArticle", "title": "", "id": "ID1"}
@@ -202,7 +228,9 @@ def test_attach_pdf_naming_falls_back_to_untitled(tmp_path: Path) -> None:
 def test_attach_pdf_naming_uses_first_author(tmp_path: Path) -> None:
     fake_refs = FakeReferencesService()
     registry = ConnectorSessionRegistry()
-    service = ZoteroBrowserPluginService(fake_refs, registry, PdfStore(tmp_path))
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
 
     item = ConnectorItem.model_validate(
         {
@@ -211,9 +239,21 @@ def test_attach_pdf_naming_uses_first_author(tmp_path: Path) -> None:
             "id": "ID1",
             "date": "2025",
             "creators": [
-                {"creatorType": "author", "firstName": "Jane", "lastName": "Yang"},
-                {"creatorType": "author", "firstName": "Bob", "lastName": "Smith"},
-                {"creatorType": "editor", "firstName": "Ed", "lastName": "Jones"},
+                {
+                    "creatorType": "author",
+                    "firstName": "Jane",
+                    "lastName": "Yang",
+                },
+                {
+                    "creatorType": "author",
+                    "firstName": "Bob",
+                    "lastName": "Smith",
+                },
+                {
+                    "creatorType": "editor",
+                    "firstName": "Ed",
+                    "lastName": "Jones",
+                },
             ],
         }
     )
@@ -229,7 +269,9 @@ def test_attach_pdf_naming_uses_first_author(tmp_path: Path) -> None:
 def test_attach_pdf_deduplicates_collisions(tmp_path: Path) -> None:
     fake_refs = FakeReferencesService()
     registry = ConnectorSessionRegistry()
-    service = ZoteroBrowserPluginService(fake_refs, registry, PdfStore(tmp_path))
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
 
     service.ingest_items("sess-1", [_item("KEYAAA", item_id="ID1")])
     meta = ConnectorAttachmentMetadata.model_validate(
@@ -251,7 +293,9 @@ def test_attach_pdf_deduplicates_collisions(tmp_path: Path) -> None:
 def test_attach_pdf_raises_when_parent_missing(tmp_path: Path) -> None:
     fake_refs = FakeReferencesService()
     registry = ConnectorSessionRegistry()
-    service = ZoteroBrowserPluginService(fake_refs, registry, PdfStore(tmp_path))
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
 
     meta = ConnectorAttachmentMetadata.model_validate(
         {"parentItemID": "NOPE", "title": "Full Text PDF"}
@@ -263,7 +307,9 @@ def test_attach_pdf_raises_when_parent_missing(tmp_path: Path) -> None:
 def test_attach_pdf_raises_when_session_missing(tmp_path: Path) -> None:
     fake_refs = FakeReferencesService()
     registry = ConnectorSessionRegistry()
-    service = ZoteroBrowserPluginService(fake_refs, registry, PdfStore(tmp_path))
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
 
     meta = ConnectorAttachmentMetadata.model_validate(
         {"parentItemID": "ID1", "title": "Full Text PDF"}
@@ -277,12 +323,16 @@ def test_save_standalone_pdf_creates_reference_and_stores_file(
 ) -> None:
     fake_refs = FakeReferencesService()
     registry = ConnectorSessionRegistry()
-    service = ZoteroBrowserPluginService(fake_refs, registry, PdfStore(tmp_path))
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
 
     meta = ConnectorAttachmentMetadata.model_validate(
         {"title": "Standalone PDF", "url": "https://x/y.pdf"}
     )
-    attachment = service.save_standalone_pdf("sess-1", meta, b"%PDF-1.4 standalone")
+    attachment = service.save_standalone_pdf(
+        "sess-1", meta, b"%PDF-1.4 standalone"
+    )
 
     assert attachment.path == Path("StandalonePDF.pdf")
     assert (tmp_path / attachment.path).read_bytes() == b"%PDF-1.4 standalone"
@@ -293,9 +343,13 @@ def test_save_standalone_pdf_creates_reference_and_stores_file(
 def test_save_standalone_pdf_defaults_title(tmp_path: Path) -> None:
     fake_refs = FakeReferencesService()
     registry = ConnectorSessionRegistry()
-    service = ZoteroBrowserPluginService(fake_refs, registry, PdfStore(tmp_path))
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
 
-    meta = ConnectorAttachmentMetadata.model_validate({"url": "https://x/y.pdf"})
+    meta = ConnectorAttachmentMetadata.model_validate(
+        {"url": "https://x/y.pdf"}
+    )
     attachment = service.save_standalone_pdf("sess-1", meta, b"%PDF-1.4")
     assert attachment.path == Path("UntitledAttachment.pdf")
     assert fake_refs.created[0].title == "Untitled Attachment"

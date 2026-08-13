@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from app.pdf_store.service import PdfStore
 from app.references.citation_key import (
     CitationKeyGenerator,
     _base_citation_key,
@@ -16,8 +17,11 @@ from app.references.schemas import (
 
 
 class ReferencesService:
-    def __init__(self, repository: ReferencesRepository) -> None:
+    def __init__(
+        self, repository: ReferencesRepository, pdf_store: PdfStore
+    ) -> None:
         self._repository = repository
+        self._pdf_store = pdf_store
 
     def get_reference(self, reference_id: UUID) -> ReferenceRead:
         reference = self._repository.get_by_id(reference_id)
@@ -118,6 +122,9 @@ class ReferencesService:
         return ReferenceRead.model_validate(model)
 
     def delete_reference(self, reference_id: UUID) -> None:
+        existing = self._repository.get_by_id(reference_id)
+        if existing.pdf_path:
+            self._pdf_store.delete(existing.pdf_path)
         self._repository.delete_by_id(reference_id)
 
     def set_pdf_path(self, reference_id: UUID, pdf_path: str) -> ReferenceRead:

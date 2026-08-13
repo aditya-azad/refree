@@ -1,16 +1,18 @@
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
+from app.pdf_store.service import PdfStore
 from app.references.repository import ReferencesRepository
 from app.references.schemas import ReferenceCreate
 from app.references.service import ReferencesService
 
 
 @pytest.fixture()
-def service() -> Iterator[ReferencesService]:
+def service(tmp_path: Path) -> Iterator[ReferencesService]:
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -18,7 +20,9 @@ def service() -> Iterator[ReferencesService]:
     )
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        yield ReferencesService(ReferencesRepository(session))
+        yield ReferencesService(
+            ReferencesRepository(session), PdfStore(tmp_path)
+        )
     engine.dispose()
 
 
@@ -38,7 +42,9 @@ def test_find_duplicate_groups_empty_when_no_references(
     assert service.find_duplicate_groups() == []
 
 
-def test_find_duplicate_groups_no_duplicates(service: ReferencesService) -> None:
+def test_find_duplicate_groups_no_duplicates(
+    service: ReferencesService,
+) -> None:
     service.create_reference(_sample(citation_key="a"))
     service.create_reference(
         _sample(title="Bayesian Reasoning", citation_key="b")
@@ -48,12 +54,8 @@ def test_find_duplicate_groups_no_duplicates(service: ReferencesService) -> None
 
 
 def test_find_duplicate_groups_by_doi(service: ReferencesService) -> None:
-    service.create_reference(
-        _sample(citation_key="a", doi="10.1000/xyz")
-    )
-    service.create_reference(
-        _sample(citation_key="b", doi="10.1000/xyz")
-    )
+    service.create_reference(_sample(citation_key="a", doi="10.1000/xyz"))
+    service.create_reference(_sample(citation_key="b", doi="10.1000/xyz"))
     groups = service.find_duplicate_groups()
     assert len(groups) == 1
     assert len(groups[0]) == 2
@@ -223,9 +225,7 @@ def test_compute_merge_plan_picks_most_complete_as_survivor(
     service: ReferencesService,
 ) -> None:
     first = service.create_reference(
-        _sample(
-            citation_key="a", doi="10.1000/xyz", url="https://example.com"
-        )
+        _sample(citation_key="a", doi="10.1000/xyz", url="https://example.com")
     )
     second = service.create_reference(
         _sample(citation_key="b", doi=None, url=None)
@@ -261,6 +261,4 @@ def test_merge_references_survivor_not_in_ids_raises(
     second = service.create_reference(_sample(citation_key="b"))
     third = service.create_reference(_sample(citation_key="c"))
     with pytest.raises(ValueError):
-        service.merge_references(
-            [first.id, second.id], survivor_id=third.id
-        )
+        service.merge_references([first.id, second.id], survivor_id=third.id)

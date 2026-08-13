@@ -1,11 +1,13 @@
 import time
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.common.errors import DatabaseEntryNotFoundError
+from app.pdf_store.service import PdfStore
 from app.references.models import Reference
 from app.references.repository import ReferencesRepository
 from app.references.schemas import ReferenceCreate
@@ -13,7 +15,7 @@ from app.references.service import ReferencesService
 
 
 @pytest.fixture()
-def service() -> Iterator[ReferencesService]:
+def service(tmp_path: Path) -> Iterator[ReferencesService]:
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -21,7 +23,9 @@ def service() -> Iterator[ReferencesService]:
     )
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        yield ReferencesService(ReferencesRepository(session))
+        yield ReferencesService(
+            ReferencesRepository(session), PdfStore(tmp_path)
+        )
     engine.dispose()
 
 
@@ -54,7 +58,9 @@ def test_create_reference_disambiguates_explicit_key_collision(
     service: ReferencesService,
 ) -> None:
     first = service.create_reference(_sample(citation_key="dupKey"))
-    second = service.create_reference(_sample(title="Other Work", citation_key="dupKey"))
+    second = service.create_reference(
+        _sample(title="Other Work", citation_key="dupKey")
+    )
     assert first.citation_key == "dupKey"
     assert second.citation_key == "dupKeya"
 
@@ -77,7 +83,9 @@ def test_create_or_update_reference_is_idempotent(
     )
     time.sleep(0.01)
     second = service.create_or_update_reference(
-        _sample(citation_key="goodfellow2016deep", title="Deep Learning (2nd ed.)")
+        _sample(
+            citation_key="goodfellow2016deep", title="Deep Learning (2nd ed.)"
+        )
     )
     assert len(service.list_references()) == 1
     assert second.id == first.id
@@ -100,7 +108,9 @@ def test_create_or_update_reference_merges_non_none_fields_only(
     service: ReferencesService,
 ) -> None:
     service.create_or_update_reference(
-        _sample(citation_key="key1", doi="10.1000/abc", url="https://orig.example")
+        _sample(
+            citation_key="key1", doi="10.1000/abc", url="https://orig.example"
+        )
     )
     updated = service.create_or_update_reference(
         _sample(citation_key="key1", doi="10.1000/xyz")

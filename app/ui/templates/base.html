@@ -129,6 +129,19 @@
     }
     .sidebar .pdf-link:hover { filter: brightness(1.05); }
     .pdf-missing { color: var(--muted); font-size: 12px; margin-top: 12px; }
+    .sidebar .delete-form { margin-top: 16px; }
+    .sidebar .delete-btn {
+      padding: 6px 10px; border: 1px solid var(--danger);
+      background: var(--danger-soft); color: var(--danger);
+      border-radius: 4px; font-size: 12px; cursor: pointer;
+    }
+    .sidebar .delete-btn:hover {
+      background: var(--danger); color: #fff;
+    }
+    .sidebar .delete-btn:disabled {
+      border-color: var(--border); background: transparent;
+      color: var(--muted); cursor: not-allowed;
+    }
     .pagination {
       display: flex; align-items: center; gap: 12px; padding: 8px 10px;
       border-top: 1px solid var(--border); font-size: 12px;

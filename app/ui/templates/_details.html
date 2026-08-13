@@ -35,3 +35,9 @@
 {% else %}
 <p class="pdf-missing">No PDF attached.</p>
 {% endif %}
+<form class="delete-form" data-delete-url="/references/{{ reference.id }}">
+  <button type="button" class="delete-btn"
+    data-confirm="Delete this reference and its PDF?">
+    Delete reference
+  </button>
+</form>

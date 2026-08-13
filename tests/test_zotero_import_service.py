@@ -7,6 +7,7 @@ from app.references.schemas import ReferenceCreate, ReferenceRead
 from app.zotero_import.schemas import ZoteroAttachment, ZoteroItem
 from app.zotero_import.service import ZoteroImportService
 
+
 def _fake_reference_read(reference: ReferenceCreate) -> ReferenceRead:
     now = datetime.now(UTC)
     return ReferenceRead(
@@ -142,14 +143,17 @@ def _make_service(
         ),
         references_service=fake_refs,  # type: ignore[arg-type]
         pdf_store=PdfStore(pdf_dir or Path("/tmp/refree-test-pdfs")),
-        zotero_storage_dir=zotero_storage_dir or Path("/tmp/refree-test-storage"),
+        zotero_storage_dir=zotero_storage_dir
+        or Path("/tmp/refree-test-storage"),
     )
     return service, fake_refs
 
 
 def test_field_mapping_correctness() -> None:
     item = _zotero_item("KEY1", title="Deep Learning", date="2016-12-01")
-    service, fake_refs = _make_service([item], keys={"KEY1": "goodfellow2016deep"})
+    service, fake_refs = _make_service(
+        [item], keys={"KEY1": "goodfellow2016deep"}
+    )
     result = service.import_all()
     assert result.imported == 1
     assert result.errors == []
@@ -247,6 +251,7 @@ def test_per_item_error_isolation_records_error() -> None:
         failing_keys={"bad1"},
     )
 
+
 def test_empty_doi_and_url_normalized_to_none() -> None:
     item = _zotero_item("KEY1", doi="", url="")
     service, fake_refs = _make_service([item], keys={"KEY1": "k1"})
@@ -338,7 +343,9 @@ def test_pdf_filename_built_from_author_year_title(tmp_path: Path) -> None:
     assert stored[0].name == "Doe2024APaper.pdf"
 
 
-def test_orphan_pdf_attachment_without_parent_is_skipped(tmp_path: Path) -> None:
+def test_orphan_pdf_attachment_without_parent_is_skipped(
+    tmp_path: Path,
+) -> None:
     storage = tmp_path / "zotero"
     pdfs = tmp_path / "pdfs"
     item = _zotero_item("PARENT", title="A Paper")
@@ -377,7 +384,9 @@ def test_existing_pdf_path_not_reimported(tmp_path: Path) -> None:
     assert len(list(pdfs.glob("*.pdf"))) == 1
 
 
-def test_linked_pdf_attachment_resolved_by_absolute_path(tmp_path: Path) -> None:
+def test_linked_pdf_attachment_resolved_by_absolute_path(
+    tmp_path: Path,
+) -> None:
     storage = tmp_path / "zotero"
     pdfs = tmp_path / "pdfs"
     linked = tmp_path / "linked.pdf"
@@ -430,7 +439,9 @@ def test_attachment_with_unresolvable_path_is_skipped(tmp_path: Path) -> None:
     assert result.pdfs_skipped == 1
 
 
-def test_missing_storage_file_error_isolated_and_recorded(tmp_path: Path) -> None:
+def test_missing_storage_file_error_isolated_and_recorded(
+    tmp_path: Path,
+) -> None:
     storage = tmp_path / "zotero"
     pdfs = tmp_path / "pdfs"
     item = _zotero_item("PARENT", title="A Paper")

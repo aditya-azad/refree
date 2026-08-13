@@ -51,25 +51,67 @@ def test_find_groups_by_doi_case_insensitive() -> None:
 
 
 def test_find_groups_by_title_and_year() -> None:
-    a = _ref(title="Deep Learning", citation_key="a", authors=["Ian Goodfellow"], year=2016, doi="10.1/a")
-    b = _ref(title="Deep Learning", citation_key="b", authors=["Yoshua Bengio"], year=2016, doi="10.1/b")
+    a = _ref(
+        title="Deep Learning",
+        citation_key="a",
+        authors=["Ian Goodfellow"],
+        year=2016,
+        doi="10.1/a",
+    )
+    b = _ref(
+        title="Deep Learning",
+        citation_key="b",
+        authors=["Yoshua Bengio"],
+        year=2016,
+        doi="10.1/b",
+    )
     groups = DuplicateDetector.find_groups([a, b])
     assert len(groups) == 1
     assert len(groups[0]) == 2
 
 
 def test_find_groups_by_title_and_author() -> None:
-    a = _ref(title="Deep Learning", citation_key="a", authors=["Ian Goodfellow"], year=None, doi="10.1/a")
-    b = _ref(title="Deep Learning", citation_key="b", authors=["Ian Goodfellow"], year=None, doi="10.1/b")
+    a = _ref(
+        title="Deep Learning",
+        citation_key="a",
+        authors=["Ian Goodfellow"],
+        year=None,
+        doi="10.1/a",
+    )
+    b = _ref(
+        title="Deep Learning",
+        citation_key="b",
+        authors=["Ian Goodfellow"],
+        year=None,
+        doi="10.1/b",
+    )
     groups = DuplicateDetector.find_groups([a, b])
     assert len(groups) == 1
     assert len(groups[0]) == 2
 
 
 def test_find_groups_transitive_clustering() -> None:
-    a = _ref(title="Shared Title", citation_key="a", authors=["Ian Goodfellow"], year=2020, doi="10.1/abc")
-    b = _ref(title="Shared Title", citation_key="b", authors=["Ian Goodfellow"], year=2020, doi="10.1/xyz")
-    c = _ref(title="Other Title", citation_key="c", authors=["Ian Goodfellow"], year=2020, doi="10.1/xyz")
+    a = _ref(
+        title="Shared Title",
+        citation_key="a",
+        authors=["Ian Goodfellow"],
+        year=2020,
+        doi="10.1/abc",
+    )
+    b = _ref(
+        title="Shared Title",
+        citation_key="b",
+        authors=["Ian Goodfellow"],
+        year=2020,
+        doi="10.1/xyz",
+    )
+    c = _ref(
+        title="Other Title",
+        citation_key="c",
+        authors=["Ian Goodfellow"],
+        year=2020,
+        doi="10.1/xyz",
+    )
     groups = DuplicateDetector.find_groups([a, b, c])
     assert len(groups) == 1
     assert len(groups[0]) == 3
@@ -111,7 +153,9 @@ def test_duplicate_keys_doi_lowercase() -> None:
 
 
 def test_duplicate_keys_title_year_and_author() -> None:
-    ref = _ref(title="Deep Learning 2016!", authors=["Ian Goodfellow"], year=2016)
+    ref = _ref(
+        title="Deep Learning 2016!", authors=["Ian Goodfellow"], year=2016
+    )
     keys = DuplicateDetector._duplicate_keys(ref)
     assert "ty:deeplearning2016|2016" in keys
     assert "ta:deeplearning2016|goodfellow" in keys

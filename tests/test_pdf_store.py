@@ -31,7 +31,10 @@ def test_store_returns_relative_path(tmp_path: Path) -> None:
 def test_build_filename_sanitizes_unsafe_chars() -> None:
     name = PdfStore.build_filename("O'Brien", "2024", "A Paper: Title?")
     assert name == "O'Brien2024APaperTitle.pdf"
-    assert PdfStore.build_filename("Lee", "2020", "C:\\/bad*file?") == "Lee2020Cbadfile.pdf"
+    assert (
+        PdfStore.build_filename("Lee", "2020", "C:\\/bad*file?")
+        == "Lee2020Cbadfile.pdf"
+    )
 
 
 def test_build_filename_falls_back_to_untitled() -> None:

@@ -1,4 +1,6 @@
 from collections.abc import Iterator
+from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,6 +9,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from app.common.config import PDF_DIR
 from app.main import app
+from app.pdf_store.service import PdfStore
 from app.references.container import ReferencesContainer
 from app.references.repository import ReferencesRepository
 from app.references.schemas import ReferenceCreate
@@ -16,7 +19,7 @@ from app.search.service import SearchService
 
 
 @pytest.fixture()
-def client() -> Iterator[TestClient]:
+def client(tmp_path: Path) -> Iterator[TestClient]:
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -24,7 +27,9 @@ def client() -> Iterator[TestClient]:
     )
     SQLModel.metadata.create_all(engine)
     session = Session(engine)
-    ref_service = ReferencesService(ReferencesRepository(session))
+    ref_service = ReferencesService(
+        ReferencesRepository(session), PdfStore(tmp_path)
+    )
     search_svc = SearchService(ref_service)
     ReferencesContainer.references_service.override_sync(ref_service)
     SearchContainer.search_service.override_sync(search_svc)
@@ -123,7 +128,42 @@ def test_pdf_path_null_when_no_pdf(client: TestClient) -> None:
 
 def test_uuid_route_still_works(client: TestClient) -> None:
     ref_service = ReferencesContainer.references_service.resolve_sync()
-    created = ref_service.create_reference(_sample(citation_key="goodfellow2016deep"))
+    created = ref_service.create_reference(
+        _sample(citation_key="goodfellow2016deep")
+    )
     resp = client.get(f"/references/{created.id}")
     assert resp.status_code == 200
     assert resp.json()["citation_key"] == "goodfellow2016deep"
+
+
+def test_delete_reference_removes_pdf_from_disk(
+    client: TestClient, tmp_path: Path
+) -> None:
+    ref_service = ReferencesContainer.references_service.resolve_sync()
+    ref = ref_service.create_reference(_sample(citation_key="doe2024paper"))
+    pdf_store = PdfStore(tmp_path)
+    relative = pdf_store.store("paper.pdf", b"%PDF-1.4 bytes")
+    ref_service.set_pdf_path(ref.id, str(relative))
+    assert (tmp_path / relative).is_file()
+
+    resp = client.delete(f"/references/{ref.id}")
+    assert resp.status_code == 204
+    assert not (tmp_path / relative).exists()
+
+    gone = client.get(f"/references/{ref.id}")
+    assert gone.status_code == 404
+
+
+def test_delete_reference_without_pdf_succeeds(
+    client: TestClient,
+) -> None:
+    ref_service = ReferencesContainer.references_service.resolve_sync()
+    ref = ref_service.create_reference(_sample(citation_key="doe2024paper"))
+    resp = client.delete(f"/references/{ref.id}")
+    assert resp.status_code == 204
+    assert client.get(f"/references/{ref.id}").status_code == 404
+
+
+def test_delete_missing_reference_returns_404(client: TestClient) -> None:
+    resp = client.delete(f"/references/{uuid4()}")
+    assert resp.status_code == 404

@@ -49,9 +49,7 @@ def test_resolve_survivor_not_in_members_raises() -> None:
 
 
 def test_resolve_field_choices_override_defaults() -> None:
-    first = _ref(
-        citation_key="a", url="https://first.example", doi="10.1/aaa"
-    )
+    first = _ref(citation_key="a", url="https://first.example", doi="10.1/aaa")
     second = _ref(
         citation_key="b", url="https://second.example", doi="10.2/bbb"
     )
@@ -64,9 +62,7 @@ def test_resolve_field_choices_override_defaults() -> None:
 
 
 def test_resolve_authors_unioned_by_default() -> None:
-    first = _ref(
-        citation_key="a", authors=["Ian Goodfellow"], doi="10.1/aaa"
-    )
+    first = _ref(citation_key="a", authors=["Ian Goodfellow"], doi="10.1/aaa")
     second = _ref(citation_key="b", authors=["Yoshua Bengio"])
     result = MergeResolver.resolve([first, second])
     assert result.merged_fields["authors"] == [
@@ -77,9 +73,7 @@ def test_resolve_authors_unioned_by_default() -> None:
 
 def test_resolve_field_choice_authors_replaces_not_unions() -> None:
     first = _ref(citation_key="a", authors=["Ian Goodfellow"])
-    second = _ref(
-        citation_key="b", authors=["Yann LeCun", "Yoshua Bengio"]
-    )
+    second = _ref(citation_key="b", authors=["Yann LeCun", "Yoshua Bengio"])
     result = MergeResolver.resolve(
         [first, second],
         survivor_id=first.id,
@@ -89,12 +83,8 @@ def test_resolve_field_choice_authors_replaces_not_unions() -> None:
 
 
 def test_resolve_falls_back_to_survivor_for_unchosen_fields() -> None:
-    first = _ref(
-        citation_key="a", url="https://first.example", doi="10.1/aaa"
-    )
-    second = _ref(
-        citation_key="b", url="https://second.example", doi=None
-    )
+    first = _ref(citation_key="a", url="https://first.example", doi="10.1/aaa")
+    second = _ref(citation_key="b", url="https://second.example", doi=None)
     result = MergeResolver.resolve(
         [first, second],
         survivor_id=first.id,
@@ -114,9 +104,7 @@ def test_resolve_ids_to_delete_excludes_survivor() -> None:
     first = _ref(citation_key="a")
     second = _ref(citation_key="b")
     third = _ref(citation_key="c")
-    result = MergeResolver.resolve(
-        [first, second, third], survivor_id=first.id
-    )
+    result = MergeResolver.resolve([first, second, third], survivor_id=first.id)
     assert first.id not in result.ids_to_delete
     assert set(result.ids_to_delete) == {second.id, third.id}
 

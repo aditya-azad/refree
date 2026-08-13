@@ -17,7 +17,9 @@ def test_base_citation_key_handles_no_year() -> None:
 
 
 def test_base_citation_key_strips_filler_words_from_title() -> None:
-    key = _base_citation_key("The Art of Programming", ["Donald Knuth", "Bob"], 1968)
+    key = _base_citation_key(
+        "The Art of Programming", ["Donald Knuth", "Bob"], 1968
+    )
     assert key == "knuthArtProgramming1968"
 
 
@@ -71,9 +73,7 @@ def test_resolve_explicit_key_stores_verbatim_when_free() -> None:
 
 
 def test_resolve_explicit_key_appends_suffix_on_collision() -> None:
-    key = CitationKeyGenerator.resolve_explicit(
-        "dupKey", {"dupKey"}
-    )
+    key = CitationKeyGenerator.resolve_explicit("dupKey", {"dupKey"})
     assert key == "dupKeya"
 
 
@@ -101,5 +101,7 @@ def test_generate_handles_no_authors() -> None:
 
 
 def test_generate_handles_no_year() -> None:
-    key = CitationKeyGenerator.generate("Untitled Work", ["Jane Doe"], None, set())
+    key = CitationKeyGenerator.generate(
+        "Untitled Work", ["Jane Doe"], None, set()
+    )
     assert key == "doeUntitledWork"

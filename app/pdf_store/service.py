@@ -24,6 +24,13 @@ class PdfStore:
         path.write_bytes(pdf_bytes)
         return path.relative_to(self._pdf_dir)
 
+    def delete(self, path: str | Path) -> None:
+        resolved = Path(path)
+        if not resolved.is_absolute():
+            resolved = self._pdf_dir / resolved
+        if resolved.is_file():
+            resolved.unlink()
+
     @staticmethod
     def build_filename(last_name: str, year: str, title: str) -> str:
         stem = _sanitize_filename_part(f"{last_name}{year}{title}")

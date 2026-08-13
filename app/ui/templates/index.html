@@ -119,6 +119,33 @@
       });
     });
 
+    sidebar.addEventListener("click", (e) => {
+      const btn = e.target.closest(".delete-btn");
+      if (!btn) return;
+      const form = btn.closest(".delete-form");
+      const url = form && form.dataset.deleteUrl;
+      if (!url || !window.confirm(btn.dataset.confirm || "Delete?")) return;
+      btn.disabled = true;
+      fetch(url, { method: "DELETE" })
+        .then(r => {
+          if (r.status === 204) {
+            const row = document.querySelector(
+              'tbody tr[data-id="' + selectedId + '"]');
+            if (row) row.remove();
+            sidebar.innerHTML = "";
+            selectedId = null;
+            return;
+          }
+          return r.text().then(t => Promise.reject(new Error(t)));
+        })
+        .catch(err => {
+          btn.disabled = false;
+          sidebar.insertAdjacentHTML("beforeend",
+            '<p style="color:#b00">Delete failed: ' +
+            err.message + "</p>");
+        });
+    });
+
     document.querySelectorAll('input[data-col]').forEach(cb => {
       cb.addEventListener("change", () => {
         const key = cb.dataset.col;

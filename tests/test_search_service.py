@@ -1,9 +1,11 @@
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
+from app.pdf_store.service import PdfStore
 from app.references.repository import ReferencesRepository
 from app.references.schemas import ReferenceCreate
 from app.references.service import ReferencesService
@@ -12,7 +14,7 @@ from app.search.service import SearchService
 
 
 @pytest.fixture()
-def search_service() -> Iterator[SearchService]:
+def search_service(tmp_path: Path) -> Iterator[SearchService]:
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -20,7 +22,9 @@ def search_service() -> Iterator[SearchService]:
     )
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        yield SearchService(ReferencesService(ReferencesRepository(session)))
+        yield SearchService(
+            ReferencesService(ReferencesRepository(session), PdfStore(tmp_path))
+        )
     engine.dispose()
 
 
@@ -34,7 +38,9 @@ def _sample(**overrides: object) -> ReferenceCreate:
     return ReferenceCreate(**fields)  # type: ignore[arg-type]
 
 
-def test_search_returns_matching_references(search_service: SearchService) -> None:
+def test_search_returns_matching_references(
+    search_service: SearchService,
+) -> None:
     search_service._references.create_reference(_sample())
     search_service._references.create_reference(
         _sample(title="Reinforcement Learning", authors=["Richard Sutton"])
@@ -51,13 +57,17 @@ def test_search_no_matches_returns_empty(search_service: SearchService) -> None:
     assert page.results == []
 
 
-def test_search_empty_query_returns_empty(search_service: SearchService) -> None:
+def test_search_empty_query_returns_empty(
+    search_service: SearchService,
+) -> None:
     search_service._references.create_reference(_sample())
     assert search_service.search("") == SearchPage(results=[], total=0)
     assert search_service.search("   ") == SearchPage(results=[], total=0)
 
 
-def test_search_multi_token_requires_all_tokens(search_service: SearchService) -> None:
+def test_search_multi_token_requires_all_tokens(
+    search_service: SearchService,
+) -> None:
     search_service._references.create_reference(_sample())
     page_all = search_service.search("deep learning")
     assert page_all.total == 1
@@ -65,7 +75,9 @@ def test_search_multi_token_requires_all_tokens(search_service: SearchService) -
     assert page_partial.total == 0
 
 
-def test_search_title_outranks_field_match(search_service: SearchService) -> None:
+def test_search_title_outranks_field_match(
+    search_service: SearchService,
+) -> None:
     search_service._references.create_reference(
         _sample(title="Reinforcement Learning", citation_key="rl2020")
     )
