@@ -1,7 +1,9 @@
+from pathlib import Path
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
+from app.common.config import PDF_DIR
 from app.common.types import (
     DOI,
     URL,
@@ -60,6 +62,17 @@ class ReferenceRead(BaseModel):
     language: str | None
     abstract_note: str | None
     pdf_path: str | None
+
+    @field_validator("pdf_path", mode="before")
+    @classmethod
+    def _absolute_pdf_path(cls, value: object) -> object:
+        if value is None or value == "":
+            return None
+        p = Path(str(value))
+        if not p.is_absolute():
+            p = PDF_DIR / p
+        return str(p)
+
     created_at: UTCDatetime
     updated_at: UTCDatetime
 

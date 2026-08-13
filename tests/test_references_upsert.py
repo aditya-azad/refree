@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
+from app.common.errors import DatabaseEntryNotFoundError
 from app.references.models import Reference
 from app.references.repository import ReferencesRepository
 from app.references.schemas import ReferenceCreate
@@ -116,3 +117,19 @@ def test_find_by_citation_key_returns_model(service: ReferencesService) -> None:
     assert found is not None
     assert found.citation_key == "findable"
     assert repo.find_by_citation_key("missing") is None
+
+
+def test_get_reference_by_citation_key_returns_read(
+    service: ReferencesService,
+) -> None:
+    created = service.create_reference(_sample(citation_key="findable"))
+    fetched = service.get_reference_by_citation_key("findable")
+    assert fetched.id == created.id
+    assert fetched.citation_key == "findable"
+
+
+def test_get_reference_by_citation_key_missing_raises(
+    service: ReferencesService,
+) -> None:
+    with pytest.raises(DatabaseEntryNotFoundError):
+        service.get_reference_by_citation_key("missing")

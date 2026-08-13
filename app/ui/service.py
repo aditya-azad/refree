@@ -85,7 +85,10 @@ class UIService:
         if not reference.pdf_path:
             msg = f"reference {reference_id} has no attached PDF"
             raise DatabaseEntryNotFoundError(msg)
-        path = (self._pdf_dir / reference.pdf_path).resolve()
+        path = Path(reference.pdf_path)
+        if not path.is_absolute():
+            path = self._pdf_dir / path
+        path = path.resolve()
         if not path.is_file():
             msg = f"PDF file not found for reference {reference_id}"
             raise DatabaseEntryNotFoundError(msg)

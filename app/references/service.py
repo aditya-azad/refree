@@ -23,6 +23,10 @@ class ReferencesService:
         reference = self._repository.get_by_id(reference_id)
         return ReferenceRead.model_validate(reference)
 
+    def get_reference_by_citation_key(self, citation_key: str) -> ReferenceRead:
+        reference = self._repository.get_by_citation_key(citation_key)
+        return ReferenceRead.model_validate(reference)
+
     def list_references(
         self, limit: int = 100, offset: int = 0
     ) -> list[ReferenceRead]:

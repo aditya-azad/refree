@@ -113,3 +113,11 @@ class ReferencesRepository:
             raise RepositoryError(
                 "failed to lookup reference by citation key"
             ) from e
+
+    def get_by_citation_key(self, citation_key: str) -> Reference:
+        reference = self.find_by_citation_key(citation_key)
+        if reference is None:
+            raise DatabaseEntryNotFoundError(
+                f"reference with citation key {citation_key!r}"
+            )
+        return reference

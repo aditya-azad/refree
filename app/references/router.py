@@ -14,11 +14,18 @@ from app.references.schemas import (
     ReferenceUpdate,
 )
 from app.references.service import ReferencesService
+from app.search.container import SearchContainer
+from app.search.schemas import SearchPage
+from app.search.service import SearchService
 
 router = APIRouter()
 
 ReferencesServiceDep = Annotated[
     ReferencesService, Depends(ReferencesContainer.references_service)
+]
+
+SearchServiceDep = Annotated[
+    SearchService, Depends(SearchContainer.search_service)
 ]
 
 
@@ -75,6 +82,42 @@ async def merge_references(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RepositoryError as exc:
         logger.error("failed to merge references: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get(
+    "/references/search",
+    response_model=SearchPage,
+    tags=["references"],
+)
+async def search_references(
+    service: SearchServiceDep,
+    q: Annotated[str, Query(min_length=1, max_length=200)],
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> SearchPage:
+    try:
+        return service.search(q, limit, offset)
+    except RepositoryError as exc:
+        logger.error("failed to search references: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get(
+    "/references/by-citation-key/{citation_key}",
+    response_model=ReferenceRead,
+    tags=["references"],
+)
+async def get_reference_by_citation_key(
+    citation_key: Annotated[str, Path(description="Citation key to look up")],
+    service: ReferencesServiceDep,
+) -> ReferenceRead:
+    try:
+        return service.get_reference_by_citation_key(citation_key)
+    except DatabaseEntryNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RepositoryError as exc:
+        logger.error("failed to retrieve reference by citation key: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
