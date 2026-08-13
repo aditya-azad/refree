@@ -119,12 +119,15 @@
       });
     });
 
-    sidebar.addEventListener("click", (e) => {
+    sidebar.addEventListener("click", async (e) => {
       const btn = e.target.closest(".delete-btn");
       if (!btn) return;
       const form = btn.closest(".delete-form");
       const url = form && form.dataset.deleteUrl;
-      if (!url || !window.confirm(btn.dataset.confirm || "Delete?")) return;
+      if (!url) return;
+      const confirmed = await window.confirmDialog(
+        btn.dataset.confirm || "Delete this reference?");
+      if (!confirmed) return;
       btn.disabled = true;
       fetch(url, { method: "DELETE" })
         .then(r => {

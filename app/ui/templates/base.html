@@ -142,6 +142,30 @@
       border-color: var(--border); background: transparent;
       color: var(--muted); cursor: not-allowed;
     }
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+    .modal-overlay[hidden] { display: none; }
+    .modal {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.16);
+      width: min(90vw, 400px); padding: 20px;
+    }
+    .modal p { margin: 0 0 16px; font-size: 14px; line-height: 1.5;
+      word-break: break-word; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .modal-actions button {
+      padding: 6px 14px; font-size: 13px; border-radius: 4px;
+      cursor: pointer; border: 1px solid var(--border); background: var(--bg);
+      color: var(--fg);
+    }
+    .modal-actions button:hover { background: var(--accent-soft); }
+    .modal-actions button.confirm {
+      border-color: var(--danger); background: var(--danger); color: #fff;
+    }
+    .modal-actions button.confirm:hover { filter: brightness(1.05); }
     .pagination {
       display: flex; align-items: center; gap: 12px; padding: 8px 10px;
       border-top: 1px solid var(--border); font-size: 12px;
@@ -205,6 +229,50 @@
     {% block header_extra %}{% endblock %}
   </header>
   {% block content %}{% endblock %}
+  <div class="modal-overlay" id="confirm-modal" hidden
+    role="dialog" aria-modal="true" aria-labelledby="confirm-modal-msg">
+    <div class="modal">
+      <p id="confirm-modal-msg"></p>
+      <div class="modal-actions">
+        <button type="button" id="confirm-modal-cancel">Cancel</button>
+        <button type="button" class="confirm"
+          id="confirm-modal-ok">Delete</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const overlay = document.getElementById("confirm-modal");
+      const msg = document.getElementById("confirm-modal-msg");
+      const ok = document.getElementById("confirm-modal-ok");
+      const cancel = document.getElementById("confirm-modal-cancel");
+      let resolver = null;
+
+      function close(result) {
+        overlay.hidden = true;
+        document.removeEventListener("keydown", onKey);
+        if (resolver) { resolver(result); resolver = null; }
+      }
+      function onKey(e) {
+        if (e.key === "Escape") close(false);
+        if (e.key === "Enter") close(true);
+      }
+      ok.addEventListener("click", () => close(true));
+      cancel.addEventListener("click", () => close(false));
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) close(false);
+      });
+
+      window.confirmDialog = function (message, confirmLabel) {
+        msg.textContent = message;
+        ok.textContent = confirmLabel || "Delete";
+        overlay.hidden = false;
+        ok.focus();
+        document.addEventListener("keydown", onKey);
+        return new Promise((resolve) => { resolver = resolve; });
+      };
+    })();
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

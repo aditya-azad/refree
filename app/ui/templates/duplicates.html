@@ -155,6 +155,18 @@
       };
 
       picks.forEach(p => p.addEventListener("change", update));
+      form.addEventListener("submit", async (e) => {
+        if (form.dataset.confirmed === "1") return;
+        e.preventDefault();
+        const included = Array.from(picks).filter(p => p.checked).length;
+        const confirmed = await window.confirmDialog(
+          "Merge " + included + " references? The non-survivor " +
+          "references and their PDFs will be permanently deleted.",
+          "Merge");
+        if (!confirmed) return;
+        form.dataset.confirmed = "1";
+        form.requestSubmit();
+      });
       update();
     });
   </script>
