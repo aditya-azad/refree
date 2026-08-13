@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
@@ -12,6 +13,13 @@ from app.ui.service import UIService
 router = APIRouter(tags=["ui"])
 
 UIServiceDep = Annotated[UIService, Depends(UIContainer.ui_service)]
+
+_FAVICON_PATH = Path(__file__).resolve().parents[2] / "assets" / "favicon.svg"
+
+
+@router.get("/favicon.svg", response_class=FileResponse)
+async def favicon() -> FileResponse:
+    return FileResponse(_FAVICON_PATH, media_type="image/svg+xml")
 
 
 @router.get("/", response_class=HTMLResponse)
