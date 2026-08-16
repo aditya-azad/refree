@@ -80,6 +80,16 @@ class UIService:
             {"reference": reference},
         )
 
+    def attach_pdf(
+        self, request: Request, reference_id: UUID, pdf_bytes: bytes
+    ) -> HTMLResponse:
+        reference = self._references.attach_pdf(reference_id, pdf_bytes)
+        return self._templates.TemplateResponse(
+            request,
+            "_details.html",
+            {"reference": reference},
+        )
+
     def resolve_pdf_path(self, reference_id: UUID) -> Path:
         reference = self._references.get_reference(reference_id)
         if not reference.pdf_path:

@@ -132,6 +132,24 @@
     }
     .sidebar .pdf-link:hover { filter: brightness(1.05); }
     .pdf-missing { color: var(--muted); font-size: 12px; margin-top: 12px; }
+    .sidebar .pdf-upload-form {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin-top: 8px;
+    }
+    .sidebar .pdf-upload-btn {
+      padding: 6px 10px; border: 1px solid var(--accent);
+      background: var(--accent-soft); color: var(--accent);
+      border-radius: 4px; font-size: 12px; cursor: pointer;
+      user-select: none; white-space: nowrap;
+    }
+    .sidebar .pdf-upload-btn:hover { filter: brightness(0.97); }
+    .sidebar .pdf-upload-btn.uploading {
+      opacity: 0.5; pointer-events: none;
+    }
+    .sidebar .pdf-upload-status {
+      font-size: 12px; color: var(--muted);
+    }
+    .sidebar .pdf-upload-status.error { color: var(--danger); }
     .sidebar .delete-form { margin-top: 16px; }
     .sidebar .delete-btn {
       padding: 6px 10px; border: 1px solid var(--danger);

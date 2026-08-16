@@ -35,6 +35,16 @@
 {% else %}
 <p class="pdf-missing">No PDF attached.</p>
 {% endif %}
+<form class="pdf-upload-form"
+  data-upload-url="/ui/reference/{{ reference.id }}/pdf"
+  enctype="multipart/form-data">
+  <input type="file" name="file" accept="application/pdf,.pdf" hidden
+    id="pdf-file-{{ reference.id }}" />
+  <label class="pdf-upload-btn" for="pdf-file-{{ reference.id }}">
+    {{ "Replace PDF" if reference.has_pdf else "Add PDF" }}
+  </label>
+  <span class="pdf-upload-status" hidden></span>
+</form>
 <form class="delete-form" data-delete-url="/references/{{ reference.id }}">
   <button type="button" class="delete-btn"
     data-confirm="Delete this reference and its PDF?">

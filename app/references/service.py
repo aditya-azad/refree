@@ -4,6 +4,7 @@ from app.pdf_store.service import PdfStore
 from app.references.citation_key import (
     CitationKeyGenerator,
     _base_citation_key,
+    _first_author_last_name,
 )
 from app.references.duplicates import DuplicateDetector
 from app.references.merge import MergeResolver
@@ -130,6 +131,25 @@ class ReferencesService:
     def set_pdf_path(self, reference_id: UUID, pdf_path: str) -> ReferenceRead:
         existing = self._repository.get_by_id(reference_id)
         existing.pdf_path = pdf_path
+        self._repository.update_reference(existing)
+        return ReferenceRead.model_validate(existing)
+
+    def attach_pdf(self, reference_id: UUID, pdf_bytes: bytes) -> ReferenceRead:
+        if pdf_bytes[:4] != b"%PDF":
+            msg = "uploaded file is not a valid PDF"
+            raise ValueError(msg)
+        existing = self._repository.get_by_id(reference_id)
+        if existing.pdf_path:
+            self._pdf_store.delete(existing.pdf_path)
+        relative = self._pdf_store.store(
+            PdfStore.build_filename(
+                _first_author_last_name(existing.authors),
+                str(existing.year) if existing.year else "",
+                existing.title,
+            ),
+            pdf_bytes,
+        )
+        existing.pdf_path = str(relative)
         self._repository.update_reference(existing)
         return ReferenceRead.model_validate(existing)
 

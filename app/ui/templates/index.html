@@ -149,6 +149,37 @@
         });
     });
 
+    sidebar.addEventListener("change", (e) => {
+      const input = e.target.closest('input[type="file"]');
+      if (!input) return;
+      const form = input.closest(".pdf-upload-form");
+      if (!form) return;
+      const url = form.dataset.uploadUrl;
+      const file = input.files && input.files[0];
+      if (!file || !url) return;
+      const label = form.querySelector(".pdf-upload-btn");
+      const status = form.querySelector(".pdf-upload-status");
+      const original = label.textContent;
+      label.classList.add("uploading");
+      label.textContent = "Uploading...";
+      status.hidden = true;
+      status.classList.remove("error");
+      const body = new FormData();
+      body.append("file", file);
+      fetch(url, { method: "POST", body })
+        .then(r => r.ok ? r.text()
+          : r.text().then(t => Promise.reject(new Error(t))))
+        .then(html => { sidebar.innerHTML = html; })
+        .catch(err => {
+          label.classList.remove("uploading");
+          label.textContent = original;
+          input.value = "";
+          status.hidden = false;
+          status.classList.add("error");
+          status.textContent = "Upload failed: " + err.message;
+        });
+    });
+
     document.querySelectorAll('input[data-col]').forEach(cb => {
       cb.addEventListener("change", () => {
         const key = cb.dataset.col;

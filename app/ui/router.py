@@ -2,7 +2,15 @@ from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from app.common.errors import DatabaseEntryNotFoundError, RepositoryError
@@ -111,3 +119,24 @@ async def reference_pdf(
         filename=path.name,
         content_disposition_type="inline",
     )
+
+
+@router.post("/ui/reference/{reference_id}/pdf", response_class=HTMLResponse)
+async def replace_reference_pdf(
+    request: Request,
+    reference_id: UUID,
+    file: Annotated[UploadFile, File(description="PDF file to attach")],
+    service: UIServiceDep,
+) -> HTMLResponse:
+    pdf_bytes = await file.read()
+    try:
+        return service.attach_pdf(request, reference_id, pdf_bytes)
+    except ValueError as exc:
+        logger.warning("invalid pdf upload for %s: %s", reference_id, exc)
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except DatabaseEntryNotFoundError as exc:
+        logger.warning("reference not found for pdf upload: %s", exc)
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RepositoryError as exc:
+        logger.error("failed to attach pdf for %s: %s", reference_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
