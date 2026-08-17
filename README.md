@@ -47,76 +47,53 @@ app_port: 23119
 
 See `config.example.yaml` for a starting point.
 
-## Development
-
-Development uses `uv` and a `.venv` (never pip). See `AGENTS.md` for the full
-conventions.
+## Getting started
 
 ```bash
-# Create the virtualenv and install dependencies
+# 1. Create the virtualenv and install dependencies (uv, never pip)
 uv sync
 
-# Run the dev server (zellij layout: editor + fastapi panes)
+# 2. Configure
+# put the config above in ~/.refree/config.yaml
+
+# 3. Run the dev server (zellij layout: editor + fastapi panes)
 ./scripts/dev.sh
 #   or, without zellij:
 #   fastapi dev --host 127.0.0.1 --port 23119 app/main:app
 ```
 
-## Install & autostart (Nix)
+Open the UI at `http://127.0.0.1:23119/` and check health at
+`http://127.0.0.1:23119/heartbeat`.
 
-refree is installed and run with [Nix flakes](https://nixos.wiki/wiki/Flakes).
-The flake builds a hermetic runtime environment from the pinned `uv.lock` (via
-[uv2nix](https://github.com/pyproject-nix/uv2nix)) and exposes a `refree`
-launcher that runs the FastAPI server.
+## Install & autostart (Linux)
 
-### Run ad-hoc
-
-```bash
-nix run .#refree
-# extra args forward to the fastapi CLI:
-nix run .#refree -- --workers 2
-```
-
-Host and port default to `127.0.0.1:23119`; override with the `REFREE_HOST`
-and `REFREE_PORT` environment variables. The launcher sets `PYTHONPATH` to the
-project root, so it runs from anywhere.
-
-### Install as a user service (Home Manager)
-
-The flake ships a Home Manager module that installs refree as a **systemd user
-service** that starts automatically when you log in. Add the flake as an input
-and import the module:
-
-```nix
-# flake.nix
-{
-  inputs.refree.url = "git+file:///home/azada/code/refree"; # or your repo URL
-  # …
-}
-
-# home.nix
-{
-  imports = [ inputs.refree.homeManagerModules.default ];
-  services.refree = {
-    enable = true;
-    port = 23119;            # default
-    host = "127.0.0.1";      # default
-    dataDir = ~/.refree/data; # where the SQLite DB and PDFs live
-  };
-}
-```
-
-The module generates its config declaratively (from the options above) and
-feeds it to the service via `REFREE_CONFIG_FILE`, so it does **not** read or
-mutate `~/.refree/config.yaml`. Set `services.refree.dataDir` to your existing
-library path to keep your data in place.
+`scripts/install.sh` is a one-shot bash script that installs refree into a
+`.venv` with `uv`, writes a default `~/.refree/config.yaml` if none exists, and
+registers a **systemd user service** so refree starts automatically at boot:
 
 ```bash
-home-manager switch
+./scripts/install.sh
+```
+
+It is idempotent — re-run it after pulling updates to reinstall dependencies
+and refresh the service unit. The script:
+
+1. installs `uv` if missing, then runs `uv sync`;
+2. writes a default config (`refree_dir`, `app_host`, `app_port: 23119`) only if
+   `~/.refree/config.yaml` does not already exist;
+3. reads `app_host`/`app_port` from the config and writes
+   `~/.config/systemd/user/refree.service` pointing at the project's
+   `.venv/bin/fastapi run`;
+4. enables lingering (`loginctl enable-linger`) so user services start at boot
+   even before login, then enables and (re)starts `refree.service`.
+
+After install:
+
+```bash
 systemctl --user status refree        # check status
 journalctl --user -u refree -f        # follow logs
 systemctl --user stop refree          # stop
-systemctl --user disable refree       # stop autostart at login
+systemctl --user disable refree        # stop autostart at boot
 ```
 
 Open the UI at `http://127.0.0.1:23119/` and check health at
@@ -163,7 +140,8 @@ All endpoints are tagged in the OpenAPI docs served at `/docs`.
 | POST   | `/ui/duplicates/merge`                 | Merge duplicates from the UI           |
 | GET    | `/heartbeat`                           | Health check                           |
 
-## Testing & linting
+
+## Development
 
 ```bash
 # lint, type-check, format, run tests, and audit linter suppressions
