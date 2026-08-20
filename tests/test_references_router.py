@@ -167,3 +167,29 @@ def test_delete_reference_without_pdf_succeeds(
 def test_delete_missing_reference_returns_404(client: TestClient) -> None:
     resp = client.delete(f"/references/{uuid4()}")
     assert resp.status_code == 404
+
+
+def test_bibtex_export_returns_bib_file(client: TestClient) -> None:
+    ref_service = ReferencesContainer.references_service.resolve_sync()
+    ref_service.create_reference(
+        _sample(citation_key="beta2020", item_type="journalArticle")
+    )
+    ref_service.create_reference(
+        _sample(citation_key="alpha2020", item_type="journalArticle")
+    )
+    resp = client.get("/references/bib")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/x-bibtex")
+    assert 'filename="references.bib"' in resp.headers["content-disposition"]
+    body = resp.text
+    assert "@article{" in body
+    assert "alpha2020" in body
+    assert "beta2020" in body
+    assert body.index("alpha2020") < body.index("beta2020")
+
+
+def test_bibtex_route_not_shadowed_by_uuid_route(
+    client: TestClient,
+) -> None:
+    resp = client.get("/references/bib")
+    assert resp.status_code == 200

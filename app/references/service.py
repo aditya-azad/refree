@@ -84,6 +84,7 @@ class ReferencesService:
             pages=reference.pages,
             language=reference.language,
             abstract_note=reference.abstract_note,
+            item_type=reference.item_type,
         )
         self._repository.create_reference(model)
         return ReferenceRead.model_validate(model)
