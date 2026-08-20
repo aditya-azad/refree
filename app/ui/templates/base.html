@@ -72,6 +72,13 @@
       padding: 4px 2px;
     }
     header .search a.clear:hover { color: var(--accent); }
+    header .export-bib {
+      margin-left: 8px; padding: 5px 12px; font-size: 13px;
+      border: 1px solid var(--accent); background: var(--accent-soft);
+      color: var(--accent); border-radius: 4px; text-decoration: none;
+      cursor: pointer; white-space: nowrap;
+    }
+    header .export-bib:hover { filter: brightness(0.97); }
     details.columns-menu > summary {
       cursor: pointer; list-style: none; padding: 4px 8px;
       border: 1px solid var(--border); border-radius: 4px;
@@ -247,6 +254,8 @@
       <a class="clear" href="/" title="Clear search">Clear</a>
       {% endif %}
     </form>
+    <a class="export-bib" href="/references/bib" download
+      title="Download library as BibTeX">Export Bib</a>
     {% block header_extra %}{% endblock %}
   </header>
   {% block content %}{% endblock %}
