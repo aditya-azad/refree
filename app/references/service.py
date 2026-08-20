@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from app.pdf_store.service import PdfStore
+from app.references.bibtex import BibTeXWriter
 from app.references.citation_key import (
     CitationKeyGenerator,
     _base_citation_key,
@@ -41,6 +42,12 @@ class ReferencesService:
     def list_all_references(self) -> list[ReferenceRead]:
         references = self._repository.list_all_references()
         return [ReferenceRead.model_validate(r) for r in references]
+
+    def export_bibtex(self) -> str:
+        references = self._repository.list_all_references()
+        return BibTeXWriter.format_bibliography(
+            ReferenceRead.model_validate(r) for r in references
+        )
 
     def count_references(self) -> int:
         return self._repository.count_references()

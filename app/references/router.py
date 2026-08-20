@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 
 from app.common.errors import DatabaseEntryNotFoundError, RepositoryError
 from app.common.logging import logger
@@ -58,6 +58,25 @@ async def list_duplicates(
         logger.error("failed to find duplicates: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return [DuplicateGroupRead(references=g) for g in groups]
+
+
+@router.get(
+    "/references/bib",
+    tags=["references"],
+)
+async def export_bibtex(service: ReferencesServiceDep) -> Response:
+    try:
+        content = service.export_bibtex()
+    except RepositoryError as exc:
+        logger.error("failed to export bibtex: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return Response(
+        content=content.encode("utf-8"),
+        media_type="text/x-bibtex",
+        headers={
+            "Content-Disposition": 'attachment; filename="references.bib"'
+        },
+    )
 
 
 @router.post(
