@@ -26,3 +26,4 @@ class ZoteroItemLike(Protocol):
     language: str | None
     abstract_note: str | None
     citation_key: str | None
+    item_type: str

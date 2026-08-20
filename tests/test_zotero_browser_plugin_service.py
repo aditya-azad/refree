@@ -31,6 +31,7 @@ def _fake_reference_read(reference: ReferenceCreate) -> ReferenceRead:
         pages=reference.pages,
         language=reference.language,
         abstract_note=reference.abstract_note,
+        item_type=reference.item_type,
         pdf_path=None,
         created_at=now,
         updated_at=now,
@@ -59,10 +60,11 @@ def _item(
     item_id: str = "IDAAA",
     date: str | None = None,
     last_name: str = "Doe",
+    item_type: str = "journalArticle",
 ) -> ConnectorItem:
     return ConnectorItem.model_validate(
         {
-            "itemType": "journalArticle",
+            "itemType": item_type,
             "title": title,
             "id": item_id,
             "key": key,
@@ -99,7 +101,83 @@ def test_ingest_items_persists_and_returns_saved_references(
     assert len(fake_refs.created) == 2
     assert fake_refs.created[0].title == "A Paper"
     assert fake_refs.created[0].doi == "10.1234/example"
+    assert fake_refs.created[0].item_type == "journalArticle"
+    assert fake_refs.created[1].item_type == "journalArticle"
     assert fake_refs.created[0].url == "https://example.com/paper"
+
+
+def test_ingest_items_persists_distinct_item_types(tmp_path: Path) -> None:
+    fake_refs = FakeReferencesService()
+    registry = ConnectorSessionRegistry()
+    service = ZoteroBrowserPluginService(
+        fake_refs, registry, PdfStore(tmp_path)
+    )
+
+    shannon = ConnectorItem.model_validate(
+        {
+            "itemType": "journalArticle",
+            "title": "A Mathematical Theory of Communication",
+            "id": "ID1",
+            "key": "SHANNON1948",
+            "date": "1948-07",
+            "creators": [
+                {
+                    "creatorType": "author",
+                    "firstName": "Claude E.",
+                    "lastName": "Shannon",
+                }
+            ],
+            "DOI": "10.1002/j.1538-7305.1948.tb01338.x",
+            "url": "https://ieeexplore.ieee.org/document/6773024",
+            "publicationTitle": "Bell System Technical Journal",
+            "publisher": "American Telephone and Telegraph Company",
+            "volume": "27",
+            "issue": "3",
+            "pages": "379-423",
+            "language": "en",
+        }
+    )
+    krizhevsky = ConnectorItem.model_validate(
+        {
+            "itemType": "conferencePaper",
+            "title": (
+                "ImageNet Classification with Deep "
+                "Convolutional Neural Networks"
+            ),
+            "id": "ID2",
+            "key": "KRIZHEVSKY2012",
+            "date": "2012-12-03",
+            "creators": [
+                {
+                    "creatorType": "author",
+                    "firstName": "Alex",
+                    "lastName": "Krizhevsky",
+                },
+                {
+                    "creatorType": "author",
+                    "firstName": "Ilya",
+                    "lastName": "Sutskever",
+                },
+                {
+                    "creatorType": "author",
+                    "firstName": "Geoffrey E.",
+                    "lastName": "Hinton",
+                },
+            ],
+            "DOI": "10.1145/3065386",
+            "url": "https://papers.nips.cc/paper/2012",
+            "publicationTitle": "Advances in Neural Information Processing Systems",
+            "publisher": "Curran Associates, Inc.",
+            "pages": "1097-1105",
+            "language": "en",
+        }
+    )
+
+    service.ingest_items("sess-1", [shannon, krizhevsky])
+
+    assert fake_refs.created[0].item_type == "journalArticle"
+    assert fake_refs.created[1].item_type == "conferencePaper"
+    assert fake_refs.created[0].item_type != fake_refs.created[1].item_type
 
 
 def test_ingest_items_registers_references_in_session(tmp_path: Path) -> None:

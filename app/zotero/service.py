@@ -57,4 +57,5 @@ def to_reference_create(item: ZoteroItemLike) -> ReferenceCreate:
         language=item.language,
         abstract_note=item.abstract_note,
         citation_key=item.citation_key,
+        item_type=item.item_type,
     )

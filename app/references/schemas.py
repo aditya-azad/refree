@@ -27,6 +27,7 @@ class ReferenceCreate(BaseModel):
     language: ProperWhitespacedStr | None = None
     abstract_note: ProperWhitespacedStr | None = None
     citation_key: str | None = None
+    item_type: str | None = None
 
 
 class ReferenceUpdate(BaseModel):
@@ -42,6 +43,7 @@ class ReferenceUpdate(BaseModel):
     pages: ProperWhitespacedStr | None = None
     language: ProperWhitespacedStr | None = None
     abstract_note: ProperWhitespacedStr | None = None
+    item_type: str | None = None
 
 
 class ReferenceRead(BaseModel):
@@ -61,6 +63,7 @@ class ReferenceRead(BaseModel):
     pages: str | None
     language: str | None
     abstract_note: str | None
+    item_type: str | None
     pdf_path: str | None
 
     @field_validator("pdf_path", mode="before")

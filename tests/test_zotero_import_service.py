@@ -25,6 +25,7 @@ def _fake_reference_read(reference: ReferenceCreate) -> ReferenceRead:
         pages=reference.pages,
         language=reference.language,
         abstract_note=reference.abstract_note,
+        item_type=reference.item_type,
         pdf_path=None,
         created_at=now,
         updated_at=now,
@@ -170,6 +171,61 @@ def test_field_mapping_correctness() -> None:
     assert create.pages == "45-67"
     assert create.language == "en"
     assert create.abstract_note == "An abstract."
+
+
+def test_item_type_persisted_for_journal_article(
+    tmp_path: Path,
+) -> None:
+    item = _zotero_item(
+        "SHANNON1948",
+        item_type="journalArticle",
+        title="A Mathematical Theory of Communication",
+        date="1948-07",
+        first_name="Claude E.",
+        last_name="Shannon",
+        doi="10.1002/j.1538-7305.1948.tb01338.x",
+        url="https://ieeexplore.ieee.org/document/6773024",
+        publication_title="Bell System Technical Journal",
+        publisher="American Telephone and Telegraph Company",
+        volume="27",
+        issue="3",
+        pages="379-423",
+    )
+    service, fake_refs = _make_service(
+        [item],
+        keys={"SHANNON1948": "shannon1948mathematical"},
+        pdf_dir=tmp_path / "pdfs",
+        zotero_storage_dir=tmp_path / "storage",
+    )
+    service.import_all()
+    assert fake_refs.calls[0].item_type == "journalArticle"
+
+
+def test_item_type_persisted_distinctly_for_book_section(
+    tmp_path: Path,
+) -> None:
+    item = _zotero_item(
+        "GAMMA1994",
+        item_type="bookSection",
+        title="Introduction",
+        date="1994-10-31",
+        first_name="Erich",
+        last_name="Gamma",
+        doi=None,
+        url="https://www.informit.com/store/design-patterns-9780201633610",
+        publication_title="Design Patterns: Elements of Reusable Object-Oriented Software",
+        publisher="Addison-Wesley Professional",
+        pages="1-22",
+    )
+    service, fake_refs = _make_service(
+        [item],
+        keys={"GAMMA1994": "gamma1994introduction"},
+        pdf_dir=tmp_path / "pdfs",
+        zotero_storage_dir=tmp_path / "storage",
+    )
+    service.import_all()
+    assert fake_refs.calls[0].item_type == "bookSection"
+    assert fake_refs.calls[0].item_type != "journalArticle"
 
 
 def test_bbt_citation_key_preserved_end_to_end() -> None:
