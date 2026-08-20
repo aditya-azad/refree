@@ -63,7 +63,7 @@ class ReferenceRead(BaseModel):
     pages: str | None
     language: str | None
     abstract_note: str | None
-    item_type: str | None
+    item_type: str | None = None
     pdf_path: str | None
 
     @field_validator("pdf_path", mode="before")
