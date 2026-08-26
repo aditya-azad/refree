@@ -7,6 +7,7 @@ from app.common.errors import DatabaseEntryNotFoundError, RepositoryError
 from app.common.logging import logger
 from app.references.container import ReferencesContainer
 from app.references.schemas import (
+    BibExportRequest,
     DuplicateGroupRead,
     MergeRequest,
     ReferenceCreate,
@@ -69,6 +70,31 @@ async def export_bibtex(service: ReferencesServiceDep) -> Response:
         content = service.export_bibtex()
     except RepositoryError as exc:
         logger.error("failed to export bibtex: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return Response(
+        content=content.encode("utf-8"),
+        media_type="text/x-bibtex",
+        headers={
+            "Content-Disposition": 'attachment; filename="references.bib"'
+        },
+    )
+
+
+@router.post(
+    "/references/bib/by-citation-keys",
+    tags=["references"],
+)
+async def export_bibtex_for_keys(
+    payload: BibExportRequest,
+    service: ReferencesServiceDep,
+) -> Response:
+    try:
+        content = service.export_bibtex_for_keys(payload.citation_keys)
+    except DatabaseEntryNotFoundError as exc:
+        logger.warning("bibtex export missing citation keys: %s", exc)
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RepositoryError as exc:
+        logger.error("failed to export bibtex for keys: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return Response(
         content=content.encode("utf-8"),

@@ -1,7 +1,13 @@
 from pathlib import Path
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+)
 
 from app.common.config import PDF_DIR
 from app.common.types import (
@@ -93,3 +99,7 @@ class MergeRequest(BaseModel):
     reference_ids: list[UUID]
     survivor_id: UUID | None = None
     field_choices: dict[str, UUID] | None = None
+
+
+class BibExportRequest(BaseModel):
+    citation_keys: list[ProperWhitespacedStr] = Field(min_length=1)

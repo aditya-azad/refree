@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from app.common.errors import DatabaseEntryNotFoundError
 from app.pdf_store.service import PdfStore
 from app.references.bibtex import BibTeXWriter
 from app.references.citation_key import (
@@ -45,6 +46,24 @@ class ReferencesService:
 
     def export_bibtex(self) -> str:
         references = self._repository.list_all_references()
+        return BibTeXWriter.format_bibliography(
+            ReferenceRead.model_validate(r) for r in references
+        )
+
+    def export_bibtex_for_keys(self, citation_keys: list[str]) -> str:
+        unique_keys = list(dict.fromkeys(citation_keys))
+        references: list[Reference] = []
+        missing: list[str] = []
+        for key in unique_keys:
+            reference = self._repository.find_by_citation_key(key)
+            if reference is None:
+                missing.append(key)
+            else:
+                references.append(reference)
+        if missing:
+            raise DatabaseEntryNotFoundError(
+                f"citation keys not found: {', '.join(missing)}"
+            )
         return BibTeXWriter.format_bibliography(
             ReferenceRead.model_validate(r) for r in references
         )

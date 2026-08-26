@@ -193,3 +193,84 @@ def test_bibtex_route_not_shadowed_by_uuid_route(
 ) -> None:
     resp = client.get("/references/bib")
     assert resp.status_code == 200
+
+
+
+def test_bibtex_by_citation_keys_returns_only_selected(
+    client: TestClient,
+) -> None:
+    ref_service = ReferencesContainer.references_service.resolve_sync()
+    ref_service.create_reference(
+        _sample(citation_key="alpha2020", item_type="journalArticle")
+    )
+    ref_service.create_reference(
+        _sample(citation_key="beta2020", item_type="journalArticle")
+    )
+    resp = client.post(
+        "/references/bib/by-citation-keys",
+        json={"citation_keys": ["beta2020"]},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/x-bibtex")
+    body = resp.text
+    assert "beta2020" in body
+    assert "alpha2020" not in body
+
+
+def test_bibtex_by_citation_keys_orders_by_citation_key(
+    client: TestClient,
+) -> None:
+    ref_service = ReferencesContainer.references_service.resolve_sync()
+    ref_service.create_reference(
+        _sample(citation_key="zebra2020", item_type="journalArticle")
+    )
+    ref_service.create_reference(
+        _sample(citation_key="alpha2020", item_type="journalArticle")
+    )
+    resp = client.post(
+        "/references/bib/by-citation-keys",
+        json={"citation_keys": ["zebra2020", "alpha2020"]},
+    )
+    assert resp.status_code == 200
+    body = resp.text
+    assert body.index("alpha2020") < body.index("zebra2020")
+
+
+def test_bibtex_by_citation_keys_missing_returns_404(
+    client: TestClient,
+) -> None:
+    ref_service = ReferencesContainer.references_service.resolve_sync()
+    ref_service.create_reference(
+        _sample(citation_key="alpha2020", item_type="journalArticle")
+    )
+    resp = client.post(
+        "/references/bib/by-citation-keys",
+        json={"citation_keys": ["alpha2020", "nope"]},
+    )
+    assert resp.status_code == 404
+    assert "nope" in resp.json()["detail"]
+
+
+def test_bibtex_by_citation_keys_empty_list_returns_422(
+    client: TestClient,
+) -> None:
+    resp = client.post(
+        "/references/bib/by-citation-keys",
+        json={"citation_keys": []},
+    )
+    assert resp.status_code == 422
+
+
+def test_bibtex_by_citation_keys_dedupes_repeated_keys(
+    client: TestClient,
+) -> None:
+    ref_service = ReferencesContainer.references_service.resolve_sync()
+    ref_service.create_reference(
+        _sample(citation_key="alpha2020", item_type="journalArticle")
+    )
+    resp = client.post(
+        "/references/bib/by-citation-keys",
+        json={"citation_keys": ["alpha2020", "alpha2020"]},
+    )
+    assert resp.status_code == 200
+    assert resp.text.count("@article{alpha2020,") == 1
