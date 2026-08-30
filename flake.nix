@@ -112,7 +112,7 @@
             installPhase = ''
               mkdir -p $out
               cp -r app $out/
-              cp pyproject.toml uv.lock .python-version $out/
+              cp pyproject.toml uv.lock $out/
 
               if [ -n "''${venvSrc:-}" ] && [ -d "$venvSrc" ]; then
                 cp -r "$venvSrc" $out/.venv
