@@ -65,6 +65,113 @@ uv sync
 Open the UI at `http://127.0.0.1:23119/` and check health at
 `http://127.0.0.1:23119/heartbeat`.
 
+## Nix / NixOS
+
+refree ships with a Nix flake that provides the system-level build
+environment (Python 3.13, `uv`, `zellij`, `libsqlite3`) while `uv` continues
+to manage all Python packages from `pyproject.toml` / `uv.lock`.
+
+### Development shell
+
+```bash
+nix develop          # enters a shell with Python 3.13, uv, zellij, sqlite
+uv sync              # create .venv (first time only)
+./scripts/dev.sh     # zellij layout: editor + fastapi panes (auto-enters nix develop)
+```
+
+`scripts/dev.sh` automatically enters the Nix dev shell if `nix` is available,
+so it works both inside and outside `nix develop`.
+
+### Run directly
+
+```bash
+nix run --impure              # uses the local .venv if present
+```
+
+The `--impure` flag lets the build read the local `.venv/` (created by
+`uv sync` in the dev shell) so the Nix sandbox doesn't need network access.
+A default `~/.refree/config.yaml` is created on first run if none exists.
+
+### Build
+
+```bash
+nix build --impure            # uses the local .venv; patches ELF binaries
+./result/bin/refree           # starts the server
+```
+
+The build copies the `.venv/` created by `uv sync` (in the dev shell) into the
+Nix store and runs `autoPatchelfHook` to patch all native `.so` files
+(`uvloop`, `httptools`, `watchfiles`, `pydantic-core`, etc.) to use Nix store
+paths. This makes the resulting package self-contained — no `nix-ld` or
+`--no-sandbox` needed at runtime.
+
+If no `.venv/` exists, the build falls back to `uv sync --frozen --no-dev`,
+which requires network access (`--no-sandbox`).
+
+### Install on NixOS
+
+Add the flake as an input and import the NixOS module. The module creates a
+system service (`services.refree`) with a dedicated user, generated config,
+and automatic startup at boot:
+
+```nix
+# flake.nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    refree.url = "github:azada/refree";
+  };
+
+  outputs = { self, nixpkgs, refree, ... }: {
+    nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ./hardware-configuration.nix
+        ./configuration.nix
+        refree.nixosModules.default
+        {
+          nixpkgs.overlays = [ refree.overlays.default ];
+          services.refree.enable = true;
+          # Optional overrides:
+          # services.refree.port = 23119;          # default
+          # services.refree.host = "127.0.0.1";     # default
+          # services.refree.dataDir = "/var/lib/refree";  # default
+        }
+      ];
+    };
+  };
+}
+```
+
+Rebuild and the service starts automatically at boot:
+
+```bash
+sudo nixos-rebuild switch
+
+# Verify:
+systemctl status refree
+curl http://127.0.0.1:23119/heartbeat
+```
+
+The NixOS build uses the flake's `packages.default` via the overlay. If the
+build machine has a local `.venv/` (from `uv sync`), pass `--impure` so the
+Nix sandbox can read it; otherwise the build falls back to `uv sync` which
+needs `--no-sandbox` for network access.
+
+The service runs as a system user `refree` with data in `/var/lib/refree`
+(SQLite database + PDFs). Config is generated at `/etc/refree/config.yaml`
+from the module options.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `services.refree.enable` | `false` | Enable the service |
+| `services.refree.host` | `127.0.0.1` | Bind host |
+| `services.refree.port` | `23119` | Bind port |
+| `services.refree.dataDir` | `/var/lib/refree` | SQLite + PDFs directory |
+| `services.refree.user` | `refree` | System user |
+| `services.refree.group` | `refree` | System group |
+| `services.refree.package` | `pkgs.refree` | Package (via overlay) |
+
 ## Install & autostart (Linux)
 
 `scripts/install.sh` is a one-shot bash script that installs refree into a

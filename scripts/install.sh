@@ -1,22 +1,17 @@
 #!/bin/bash
 #
-# install.sh - install refree and register it as a systemd user service that
-# starts automatically at boot. Safe to re-run.
+# install.sh - install refree via nix and register a systemd user service
+# that starts automatically at boot. Safe to re-run.
 
 set -euo pipefail
 
 app_name="refree"
 project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-venv_dir="$project_dir/.venv"
 
-if ! command -v uv >/dev/null 2>&1; then
-    echo ">>> uv not found; installing uv..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    export PATH="$HOME/.local/bin:$PATH"
-fi
 
-echo ">>> Installing dependencies into $venv_dir ..."
-uv sync
+echo ">>> Building refree via nix..."
+REFREE_VENV="$project_dir/.venv" nix build --impure "$project_dir"
+refree_bin="$project_dir/result/bin/refree"
 
 config_dir="$HOME/.refree"
 config_file="$config_dir/config.yaml"
@@ -30,14 +25,16 @@ if [[ ! -f "$config_file" ]]; then
     } > "$config_file"
 fi
 
-host=$(PYTHONPATH="$project_dir" "$venv_dir/bin/python" -c \
-    "from app.common.config import APP_HOST; print(APP_HOST)")
-port=$(PYTHONPATH="$project_dir" "$venv_dir/bin/python" -c \
-    "from app.common.config import APP_PORT; print(APP_PORT)")
+host=$(PYTHONPATH="$project_dir" "$project_dir/.venv/bin/python" -c \
+    "from app.common.config import APP_HOST; print(APP_HOST)" 2>/dev/null \
+    || echo 127.0.0.1)
+port=$(PYTHONPATH="$project_dir" "$project_dir/.venv/bin/python" -c \
+    "from app.common.config import APP_PORT; print(APP_PORT)" 2>/dev/null \
+    || echo 23119)
 
 if ! command -v systemctl >/dev/null 2>&1; then
     echo ">>> systemd not found; skipping autostart setup." >&2
-    echo "    Run manually: $venv_dir/bin/fastapi run --host $host --port $port" >&2
+    echo "    Run manually: $refree_bin" >&2
     exit 0
 fi
 
@@ -52,8 +49,8 @@ echo ">>> Writing systemd user unit to $service_file"
     echo
     echo "[Service]"
     echo "Type=simple"
-    echo "WorkingDirectory=$project_dir"
-    echo "ExecStart=$venv_dir/bin/fastapi run --host $host --port $port"
+    echo "ExecStart=$refree_bin"
+    echo "Environment=REFREE_CONFIG_FILE=$config_file"
     echo "Restart=on-failure"
     echo "RestartSec=5"
     echo

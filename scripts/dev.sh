@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+if [ -z "${REFREE_NIX_SHELL:-}" ] && command -v nix >/dev/null 2>&1; then
+    exec nix develop -c env REFREE_NIX_SHELL=1 bash "$0" "$@"
+fi
+
+
 session_name="refree"
 project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 zellij d "$session_name" >/dev/null 2>&1 || true
