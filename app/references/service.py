@@ -108,6 +108,14 @@ class ReferencesService:
         self._repository.create_reference(model)
         return ReferenceRead.model_validate(model)
 
+    def create_reference_with_pdf(
+        self, reference: ReferenceCreate, pdf_bytes: bytes | None
+    ) -> ReferenceRead:
+        created = self.create_reference(reference)
+        if pdf_bytes is not None:
+            created = self.attach_pdf(created.id, pdf_bytes)
+        return created
+
     def create_or_update_reference(
         self, reference: ReferenceCreate
     ) -> ReferenceRead:

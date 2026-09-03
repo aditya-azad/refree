@@ -1,6 +1,7 @@
+import json
 from collections.abc import Iterator
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -274,3 +275,87 @@ def test_bibtex_by_citation_keys_dedupes_repeated_keys(
     )
     assert resp.status_code == 200
     assert resp.text.count("@article{alpha2020,") == 1
+
+
+
+def test_create_reference_json_still_works(client: TestClient) -> None:
+    resp = client.post(
+        "/references",
+        json={
+            "title": "JSON Paper",
+            "authors": ["Author A"],
+            "year": 2021,
+        },
+    )
+    assert resp.status_code == 201
+    assert resp.json()["title"] == "JSON Paper"
+    assert resp.json()["has_pdf"] is False
+
+
+def test_create_reference_multipart_with_pdf(client: TestClient, tmp_path: Path) -> None:
+    pdf_content = b"%PDF-1.4 fake pdf content"
+    reference_data = {
+        "title": "Multipart Paper",
+        "authors": ["Author B"],
+        "year": 2022,
+    }
+    resp = client.post(
+        "/references",
+        files={
+            "reference": (None, json.dumps(reference_data)),
+            "pdf": ("paper.pdf", pdf_content, "application/pdf"),
+        },
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["title"] == "Multipart Paper"
+    assert body["has_pdf"] is True
+    ref_service = ReferencesContainer.references_service.resolve_sync()
+    stored = ref_service.get_reference(UUID(body["id"]))
+    assert stored.has_pdf
+
+
+def test_create_reference_multipart_without_pdf(client: TestClient) -> None:
+    reference_data = {
+        "title": "No PDF Multipart",
+        "authors": ["Author C"],
+        "year": 2023,
+    }
+    resp = client.post(
+        "/references",
+        files={
+            "reference": (None, json.dumps(reference_data)),
+        },
+    )
+    assert resp.status_code == 201
+    assert resp.json()["title"] == "No PDF Multipart"
+    assert resp.json()["has_pdf"] is False
+
+
+def test_create_reference_multipart_invalid_pdf_returns_422(
+    client: TestClient,
+) -> None:
+    reference_data = {
+        "title": "Bad PDF",
+        "authors": ["Author D"],
+        "year": 2024,
+    }
+    resp = client.post(
+        "/references",
+        files={
+            "reference": (None, json.dumps(reference_data)),
+            "pdf": ("paper.pdf", b"not a pdf", "application/pdf"),
+        },
+    )
+    assert resp.status_code == 422
+
+
+def test_create_reference_unsupported_content_type_returns_415(
+    client: TestClient,
+) -> None:
+    resp = client.post(
+        "/references",
+        content="plain text",
+        headers={"content-type": "text/plain"},
+    )
+    assert resp.status_code == 415

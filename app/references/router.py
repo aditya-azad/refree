@@ -1,7 +1,16 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Path,
+    Query,
+    Request,
+    Response,
+)
+from starlette.datastructures import UploadFile
 
 from app.common.errors import DatabaseEntryNotFoundError, RepositoryError
 from app.common.logging import logger
@@ -193,11 +202,32 @@ async def get_reference(
     tags=["references"],
 )
 async def create_reference(
-    reference: ReferenceCreate,
+    request: Request,
     service: ReferencesServiceDep,
 ) -> ReferenceRead:
+    content_type = request.headers.get("content-type", "")
     try:
-        result = service.create_reference(reference)
+        if content_type.startswith("application/json"):
+            reference = ReferenceCreate.model_validate(await request.json())
+            result = service.create_reference_with_pdf(reference, None)
+        elif content_type.startswith("multipart/form-data"):
+            form = await request.form()
+            reference = ReferenceCreate.model_validate_json(
+                str(form["reference"])
+            )
+            pdf_bytes: bytes | None = None
+            upload = form.get("pdf")
+            if upload is not None and isinstance(upload, UploadFile):
+                pdf_bytes = await upload.read()
+            result = service.create_reference_with_pdf(reference, pdf_bytes)
+        else:
+            raise HTTPException(
+                status_code=415,
+                detail=f"unsupported content type: {content_type}",
+            )
+    except ValueError as exc:
+        logger.warning("invalid pdf upload for create: %s", exc)
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RepositoryError as exc:
         logger.error("failed to create reference: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
