@@ -12,6 +12,44 @@ project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 echo ">>> Building refree via nix..."
 REFREE_VENV="$project_dir/.venv" nix build --impure "$project_dir"
 refree_bin="$project_dir/result/bin/refree"
+mcp_bin="$project_dir/result/bin/refree-mcp"
+
+# Install both binaries to a PATH directory so any client (the web service,
+# any MCP-capable agent, a shell) can launch them by name, independent of
+# the project source path or any agent-specific config directory.
+local_bin_dir="$HOME/.local/bin"
+mkdir -p "$local_bin_dir"
+ln -sfn "$refree_bin" "$local_bin_dir/$app_name"
+ln -sfn "$mcp_bin" "$local_bin_dir/refree-mcp"
+
+# Register the MCP server definition. The content is the standard,
+# agent-agnostic `mcpServers` JSON shape; the file location is the pi-mcp-adapter
+# global config, read automatically by pi. Any other MCP client can consume the
+# same snippet from its own config file.
+mcp_config="${REFREE_MCP_CONFIG:-$HOME/.pi/agent/mcp.json}"
+mkdir -p "$(dirname "$mcp_config")"
+"$project_dir/.venv/bin/python" - "$mcp_config" "$local_bin_dir/refree-mcp" <<'PY'
+import json
+import os
+import sys
+
+path, command = sys.argv[1], sys.argv[2]
+try:
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+except FileNotFoundError:
+    data = {}
+except json.JSONDecodeError:
+    os.replace(path, path + ".bak")
+    data = {}
+if not isinstance(data, dict):
+    data = {}
+servers = data.setdefault("mcpServers", {})
+servers["refree"] = {"command": command}
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(data, handle, indent=2)
+    handle.write("\n")
+PY
 
 config_dir="$HOME/.refree"
 config_file="$config_dir/config.yaml"
@@ -69,3 +107,10 @@ echo "    UI:     http://$host:$port/"
 echo "    Health: http://$host:$port/heartbeat"
 echo "    Status: systemctl --user status $app_name"
 echo "    Logs:   journalctl --user -u $app_name -f"
+echo
+echo ">>> MCP server (agent-agnostic, stdio):"
+echo "    Installed on PATH: refree-mcp -> $local_bin_dir/refree-mcp"
+echo "    Server definition registered in: $mcp_config"
+echo "    (standard mcpServers JSON; pi-mcp-adapter loads it automatically.)"
+echo "    Build the search index first with:"
+echo "      $project_dir/.venv/bin/python $project_dir/scripts/index_papers.py"

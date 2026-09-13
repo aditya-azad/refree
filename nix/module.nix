@@ -65,6 +65,8 @@ in
       app_port: ${toString cfg.port}
     '';
 
+    environment.systemPackages = [ cfg.package ];
+
     systemd.services.refree = {
       description = "refree - self-hosted reference manager";
       after = [ "network.target" ];

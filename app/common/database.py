@@ -10,7 +10,7 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
 )
 
-_MODELS = ("app.references.models",)
+_MODELS = ("app.references.models", "app.extraction.models")
 
 
 def _add_missing_columns() -> None:

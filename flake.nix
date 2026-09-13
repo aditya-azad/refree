@@ -32,7 +32,8 @@
             shellHook = ''
               export UV_PYTHON="${pkgs.python313}/bin/python3.13"
               export NIX_LD="$(cat ${pkgs.stdenv.cc}/nix-support/dynamic-linker)"
-              export NIX_LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [ pkgs.sqlite.out ]}''${NIX_LD_LIBRARY_PATH:+:$NIX_LD_LIBRARY_PATH}"
+              export NIX_LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [ pkgs.sqlite.out pkgs.stdenv.cc.cc.lib ]}''${NIX_LD_LIBRARY_PATH:+:$NIX_LD_LIBRARY_PATH}"
+              export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [ pkgs.sqlite.out pkgs.stdenv.cc.cc.lib ]}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
               if [ ! -d .venv ]; then
                 echo ">>> Creating virtual environment..."
                 uv sync
@@ -128,7 +129,16 @@
               mkdir -p $out/bin
               cat > $out/bin/refree << 'WRAPPER'
               #!/bin/sh
-              ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+              SELF="$0"
+              while [ -L "$SELF" ]; do
+                DIR="$(cd "$(dirname "$SELF")" && pwd)"
+                SELF="$(readlink "$SELF")"
+                case "$SELF" in
+                  /*) ;;
+                  *) SELF="$DIR/$SELF" ;;
+                esac
+              done
+              ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"
               export PYTHONPATH="$ROOT:$PYTHONPATH"
               export REFREE_CONFIG_FILE="''${REFREE_CONFIG_FILE:-$HOME/.refree/config.yaml}"
               if [ ! -f "$REFREE_CONFIG_FILE" ]; then
@@ -147,6 +157,33 @@
                 --port "$port"
               WRAPPER
               chmod +x $out/bin/refree
+
+              cat > $out/bin/refree-mcp << 'MCPWRAPPER'
+              #!/bin/sh
+              SELF="$0"
+              while [ -L "$SELF" ]; do
+                DIR="$(cd "$(dirname "$SELF")" && pwd)"
+                SELF="$(readlink "$SELF")"
+                case "$SELF" in
+                  /*) ;;
+                  *) SELF="$DIR/$SELF" ;;
+                esac
+              done
+              ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"
+              export PYTHONPATH="$ROOT:$PYTHONPATH"
+              export REFREE_CONFIG_FILE="''${REFREE_CONFIG_FILE:-$HOME/.refree/config.yaml}"
+              if [ ! -f "$REFREE_CONFIG_FILE" ]; then
+                mkdir -p "$(dirname "$REFREE_CONFIG_FILE")"
+                cat > "$REFREE_CONFIG_FILE" << 'CONF'
+              refree_dir: "~/.refree/data"
+              app_host: "127.0.0.1"
+              app_port: 23119
+              CONF
+              fi
+              cd "$ROOT"
+              exec "$ROOT/.venv/bin/python" -m app.mcp_server
+              MCPWRAPPER
+              chmod +x $out/bin/refree-mcp
             '';
           };
         }

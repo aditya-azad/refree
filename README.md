@@ -4,7 +4,8 @@
 
 A simple, self-hosted reference manager. Import references from Zotero, store
 and serve attached PDFs, search your library, and merge duplicates — all from a
-small FastAPI service with a built-in web UI.
+small FastAPI service with a built-in web UI, plus an MCP server for LLM
+tools.
 
 ## Features
 
@@ -96,7 +97,8 @@ A default `~/.refree/config.yaml` is created on first run if none exists.
 
 ```bash
 nix build --impure            # uses the local .venv; patches ELF binaries
-./result/bin/refree           # starts the server
+./result/bin/refree           # starts the web server
+./result/bin/refree-mcp       # starts the MCP server (stdio)
 ```
 
 The build copies the `.venv/` created by `uv sync` (in the dev shell) into the
@@ -151,6 +153,9 @@ sudo nixos-rebuild switch
 # Verify:
 systemctl status refree
 curl http://127.0.0.1:23119/heartbeat
+
+# The MCP server is also installed on PATH (stdio, launched on demand by clients):
+which refree-mcp
 ```
 
 The NixOS build uses the flake's `packages.default` via the overlay. If the
@@ -224,6 +229,73 @@ To let the unmodified Zotero browser extension save directly into refree, run
 the server on port `23119` (the port the connector probes). refree implements
 the `/connector/*` endpoints the extension expects (`saveItems`,
 `saveAttachment`, `saveSnapshot`, `updateSession`, `delaySync`, …).
+
+## MCP server
+
+refree ships a separate, agent-agnostic [Model Context Protocol](https://modelcontextprotocol.io)
+server (stdio transport) that any MCP-capable client can launch to search the
+library and read papers. It is a standalone process independent of the FastAPI
+app.
+
+### Tools
+
+| Tool | Description |
+|------|-------------|
+| `search_papers(query, limit=20)` | Runs **both** a semantic (embedding) and
+  a keyword (token) search over each paper's **title, abstract, and full PDF
+  contents** for the same query, returning both ranked result sets. |
+| `get_bibtex(citation_key)` | Returns the BibTeX entry for one paper, ready to
+  paste into a `.bib` file. |
+| `get_pdf_text(citation_key)` | Returns the plain text extracted from a paper's
+  PDF using mupdf. Extracted text is cached and re-extracted automatically when
+  the PDF file changes. |
+
+### Running
+
+Semantic search uses a local sentence-transformers embedding model
+(`sentence-transformers/all-MiniLM-L6-v2` by default; override via
+`embedding_model` in `config.yaml`) with vectors stored in a `sqlite-vec`
+virtual table inside the refree database. The model is downloaded to the Hugging
+Face cache on first use.
+
+Build the search index (extract PDF text + embeddings) before the first
+semantic search, and re-run it after importing new papers:
+
+```bash
+./scripts/index_papers.py            # idempotent; only (re-)indexes changed PDFs
+```
+
+Start the server:
+
+```bash
+python -m app.mcp_server              # dev: stdio transport
+refree-mcp                            # installed via Nix/install.sh
+```
+
+### Registering with a client
+
+The server definition is the standard, agent-agnostic `mcpServers` JSON shape,
+so any MCP-capable client can consume it:
+
+```json
+{
+  "mcpServers": {
+    "refree": {
+      "command": "/path/to/refree-mcp"
+    }
+  }
+}
+```
+
+`scripts/install.sh` writes this definition automatically to
+`~/.pi/agent/mcp.json` (read by the `pi-mcp-adapter` package; restart Pi or run
+`/reload` after installing). The `REFREE_MCP_CONFIG` environment variable points
+it elsewhere. For other clients, paste the snippet above into that client's MCP
+config file.
+
+When running from source instead of an installed binary, use
+`nix develop -c .venv/bin/python -m app.mcp_server` from the repo root (the
+Nix dev shell sets the `LD_LIBRARY_PATH` that pymupdf needs).
 
 ## API overview
 

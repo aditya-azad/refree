@@ -18,6 +18,7 @@ class _Settings(BaseModel):
     app_host: str = "127.0.0.1"
     app_port: int = 8000
     refree_dir: Path = _DEFAULT_REFREE_DIR
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
     @field_validator("app_port")
     @classmethod
@@ -91,3 +92,4 @@ REFREE_DIR = settings.refree_dir
 PDF_DIR = REFREE_DIR / "pdfs"
 APP_HOST = settings.app_host
 APP_PORT = settings.app_port
+EMBEDDING_MODEL = settings.embedding_model
